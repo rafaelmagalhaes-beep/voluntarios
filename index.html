@@ -2,7 +2,14 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Meta Viewport ajustado para Mobile (impede zoom indesejado no teclado do iPhone/Android) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- METATAGS ANTI-CACHE (Força o telemóvel a carregar sempre a versão mais recente do GitHub Pages) -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <title>Campus Party - Controle de Voluntários</title>
   
   <!-- Tailwind CSS -->
@@ -29,16 +36,16 @@
       background-color: var(--cp-dark);
       color: #E2E8F0;
       font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .font-orbitron { font-family: 'Orbitron', sans-serif; }
     .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
 
     /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #0A0E17; }
     ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #00FF66; }
 
     #reader video {
       border-radius: 12px;
@@ -46,135 +53,129 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col antialiased">
 
   <!-- TOPBAR -->
   <header class="bg-[#131927] border-b border-slate-800 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00FF66] to-[#00E5FF] flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg font-orbitron">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00FF66] to-[#00E5FF] flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg font-orbitron">
           CP
         </div>
         <div>
-          <h1 class="font-orbitron font-bold text-lg text-white tracking-wide">CAMPUS PARTY</h1>
-          <p class="text-xs text-slate-400 font-rajdhani uppercase tracking-wider">Gestão de Voluntários</p>
+          <h1 class="font-orbitron font-bold text-base text-white tracking-wide">CAMPUS PARTY</h1>
+          <p class="text-[10px] text-slate-400 font-rajdhani uppercase tracking-wider">Controle de Voluntários</p>
         </div>
       </div>
 
       <!-- Relógio Digital -->
-      <div class="bg-slate-900/80 px-4 py-1.5 rounded-lg border border-slate-800 flex items-center gap-3">
-        <svg class="w-4 h-4 text-[#00FF66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span id="relogioDigital" class="font-orbitron text-sm font-bold text-[#00FF66]">00:00:00</span>
+      <div class="bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 flex items-center gap-2">
+        <svg class="w-3.5 h-3.5 text-[#00FF66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="relogioDigital" class="font-orbitron text-xs font-bold text-[#00FF66]">00:00:00</span>
       </div>
 
-      <!-- Ações rápidas -->
-      <div class="flex items-center gap-2">
-        <button onclick="baixarModeloExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Modelo Excel
+      <!-- Ações rápidas no Mobile -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button onclick="baixarModeloExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700">
+          Modelo
         </button>
-        <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700 cursor-pointer">
-          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Importar
+        <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700 cursor-pointer">
+          Importar
           <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
         </label>
-        <button onclick="exportarExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700">
-          <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Exportar
+        <button onclick="exportarExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700">
+          Exportar
         </button>
-        <button onclick="abrirModalNovoVoluntario()" class="bg-gradient-to-r from-[#00FF66] to-[#00E5FF] hover:opacity-90 text-slate-950 text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
-          + Novo Voluntário
+        <button onclick="abrirModalNovoVoluntario()" class="bg-[#00FF66] hover:opacity-90 text-slate-950 text-[11px] font-bold px-3 py-1.5 rounded-lg transition shadow-md">
+          + Voluntário
         </button>
       </div>
     </div>
   </header>
 
   <!-- CONTEÚDO PRINCIPAL -->
-  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+  <main class="max-w-7xl mx-auto px-4 py-4 flex-1 w-full space-y-4">
 
-    <!-- TERMINAL KIOSK / REGISTRO RÁPIDO (COM SUPORTE A CÂMERA E QR CODE) -->
-    <section class="bg-gradient-to-r from-slate-900 via-[#131927] to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+    <!-- TERMINAL KIOSK / LEITOR DE QR CODE -->
+    <section class="bg-gradient-to-r from-slate-900 via-[#131927] to-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl space-y-3">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <span class="text-xs font-bold font-rajdhani text-[#00FF66] uppercase tracking-widest flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-[#00FF66] animate-ping"></span> Terminal de Ponto Rápido
+          <span class="text-[10px] font-bold font-rajdhani text-[#00FF66] uppercase tracking-widest flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#00FF66] animate-ping"></span> Terminal Rápido
           </span>
-          <h2 class="text-xl font-bold font-orbitron text-white">Check-in / Check-out Instantâneo</h2>
+          <h2 class="text-base font-bold font-orbitron text-white">Check-in / Check-out</h2>
         </div>
         
-        <button onclick="abrirModalCamera()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l0.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l0.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-          📷 Escanear via Câmera
+        <button onclick="abrirModalCamera()" class="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
+          📷 Abrir Câmera do Telemóvel
         </button>
       </div>
 
-      <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
-          <input type="text" id="inputKiosk" placeholder="Escaneie o QR Code ou digite Nome / CPF..." class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-[#00FF66] transition font-mono text-base" autofocus>
-        </div>
-        <button type="submit" class="bg-[#00FF66] hover:bg-[#00cc52] text-slate-950 font-bold px-8 py-3.5 rounded-xl transition font-orbitron text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#00FF66]/20">
-          REGISTRAR
+      <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="flex flex-col sm:flex-row gap-2">
+        <input type="text" id="inputKiosk" placeholder="Escaneie o QR Code ou digite..." class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-3 text-white placeholder-slate-500 focus:outline-none focus:border-[#00FF66] transition font-mono text-sm">
+        <button type="submit" class="bg-[#00FF66] text-slate-950 font-bold px-6 py-3 rounded-xl transition font-orbitron text-xs active:scale-95">
+          REGISTAR
         </button>
       </form>
-      <p id="msgKiosk" class="text-xs mt-2 h-4 transition-all font-medium"></p>
+      <p id="msgKiosk" class="text-xs h-4 transition-all font-medium"></p>
     </section>
 
     <!-- MÉTRICAS -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="bg-[#131927] p-5 rounded-2xl border border-slate-800">
-        <p class="text-xs font-medium text-slate-400">Total Cadastrados</p>
-        <p id="metricTotal" class="text-2xl font-bold font-orbitron text-white mt-1">0</p>
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-[#131927] p-3.5 rounded-xl border border-slate-800">
+        <p class="text-[11px] font-medium text-slate-400">Total Cadastrados</p>
+        <p id="metricTotal" class="text-xl font-bold font-orbitron text-white mt-0.5">0</p>
       </div>
-      <div class="bg-[#131927] p-5 rounded-2xl border border-emerald-500/20">
-        <p class="text-xs font-medium text-emerald-400">Presentes Agora</p>
-        <p id="metricPresentes" class="text-2xl font-bold font-orbitron text-emerald-400 mt-1">0</p>
+      <div class="bg-[#131927] p-3.5 rounded-xl border border-emerald-500/20">
+        <p class="text-[11px] font-medium text-emerald-400">Presentes Agora</p>
+        <p id="metricPresentes" class="text-xl font-bold font-orbitron text-emerald-400 mt-0.5">0</p>
       </div>
-      <div class="bg-[#131927] p-5 rounded-2xl border border-rose-500/20">
-        <p class="text-xs font-medium text-rose-400">Ausentes</p>
-        <p id="metricAusentes" class="text-2xl font-bold font-orbitron text-rose-400 mt-1">0</p>
+      <div class="bg-[#131927] p-3.5 rounded-xl border border-rose-500/20">
+        <p class="text-[11px] font-medium text-rose-400">Ausentes</p>
+        <p id="metricAusentes" class="text-xl font-bold font-orbitron text-rose-400 mt-0.5">0</p>
       </div>
-      <div class="bg-[#131927] p-5 rounded-2xl border border-cyan-500/20">
-        <p class="text-xs font-medium text-cyan-400">Meta Cumprirem Shift</p>
-        <p id="metricConcluidos" class="text-2xl font-bold font-orbitron text-cyan-400 mt-1">0</p>
+      <div class="bg-[#131927] p-3.5 rounded-xl border border-cyan-500/20">
+        <p class="text-[11px] font-medium text-cyan-400">Meta Cumprida</p>
+        <p id="metricConcluidos" class="text-xl font-bold font-orbitron text-cyan-400 mt-0.5">0</p>
       </div>
     </section>
 
-    <!-- LISTA E CONTROLES -->
-    <section class="bg-[#131927] rounded-2xl border border-slate-800 p-6 shadow-xl space-y-4">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h3 class="text-lg font-bold text-white font-orbitron">Painel de Voluntários</h3>
-          <p class="text-xs text-slate-400">Gerencie a entrada, saída e relatórios por QR Code</p>
-        </div>
+    <!-- LISTA E TABELA RESPONSIVA -->
+    <section class="bg-[#131927] rounded-2xl border border-slate-800 p-4 shadow-xl space-y-3">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <h3 class="text-base font-bold text-white font-orbitron">Painel de Voluntários</h3>
 
-        <div class="flex flex-wrap items-center gap-3">
-          <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar por nome, CPF ou QR Code..." class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 w-64 focus:outline-none focus:border-[#00FF66]">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar nome, CPF ou QR Code..." class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#00FF66]">
           
-          <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#00FF66]">
-            <option value="todos">Todos os Status</option>
-            <option value="presente">Presentes</option>
-            <option value="ausente">Ausentes</option>
-          </select>
+          <div class="flex items-center gap-2">
+            <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-2 flex-1 focus:outline-none focus:border-[#00FF66]">
+              <option value="todos">Todos</option>
+              <option value="presente">Presentes</option>
+              <option value="ausente">Ausentes</option>
+            </select>
 
-          <button onclick="limparTodosDados()" class="text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-lg border border-rose-500/30 hover:bg-rose-500/10 transition">
-            Limpar Tudo
-          </button>
+            <button onclick="limparTodosDados()" class="text-xs text-rose-400 px-2.5 py-2 rounded-lg border border-rose-500/30 hover:bg-rose-500/10">
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Tabela -->
+      <!-- Tabela com Scroll Horizontal suave no telemóvel -->
       <div class="overflow-x-auto rounded-xl border border-slate-800">
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-left border-collapse min-w-[600px]">
           <thead>
-            <tr class="bg-slate-900/80 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
-              <th class="p-4">Voluntário</th>
-              <th class="p-4">QR Code / Tag</th>
-              <th class="p-4">Área / Palco</th>
-              <th class="p-4">Status</th>
-              <th class="p-4">Entrada</th>
-              <th class="p-4">Saída</th>
-              <th class="p-4">Horas</th>
-              <th class="p-4 text-right">Ações</th>
+            <tr class="bg-slate-900/80 text-slate-400 text-[11px] font-semibold uppercase tracking-wider border-b border-slate-800">
+              <th class="p-3">Voluntário</th>
+              <th class="p-3">QR Code</th>
+              <th class="p-3">Área / Turno</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Entrada / Saída</th>
+              <th class="p-3 text-right">Ação</th>
             </tr>
           </thead>
-          <tbody id="tabelaCorpo" class="divide-y divide-slate-800 text-sm">
+          <tbody id="tabelaCorpo" class="divide-y divide-slate-800 text-xs">
             <!-- Renderizado via JS -->
           </tbody>
         </table>
@@ -184,60 +185,58 @@
   </main>
 
   <!-- MODAL: CÂMERA SCANNER QR CODE -->
-  <div id="modalCamera" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-orbitron font-bold text-white text-lg flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Leitor de QR Code
+  <div id="modalCamera" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-orbitron font-bold text-white text-sm flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Leitor QR Code
         </h3>
-        <button onclick="fecharModalCamera()" class="text-slate-400 hover:text-white font-bold text-xl">✕</button>
+        <button onclick="fecharModalCamera()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
       </div>
 
-      <div class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 p-2">
+      <div class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 p-1">
         <div id="reader" class="w-full"></div>
       </div>
 
-      <p id="msgCamera" class="text-center text-xs text-slate-400">Aponte a câmera para o QR Code do crachá do voluntário</p>
+      <p id="msgCamera" class="text-center text-[11px] text-slate-400">Aponte a câmara para o QR Code do crachá</p>
 
-      <div class="flex justify-end pt-2">
-        <button onclick="fecharModalCamera()" class="px-4 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 font-medium">Fechar Câmera</button>
-      </div>
+      <button onclick="fecharModalCamera()" class="w-full py-2 rounded-xl text-xs bg-slate-800 text-slate-300 font-medium">Fechar Câmera</button>
     </div>
   </div>
 
   <!-- MODAL: NOVO VOLUNTÁRIO -->
   <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-orbitron font-bold text-white text-lg">Cadastrar Voluntário</h3>
-        <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-white font-bold text-xl">✕</button>
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-orbitron font-bold text-white text-sm">Cadastrar Voluntário</h3>
+        <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
       </div>
 
-      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-3">
+      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-2.5 text-xs">
         <div>
-          <label class="text-xs text-slate-400 block mb-1">Nome Completo *</label>
-          <input type="text" id="novoNome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+          <label class="text-slate-400 block mb-1">Nome Completo *</label>
+          <input type="text" id="novoNome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-xs text-slate-400 block mb-1">CPF *</label>
-            <input type="text" id="novoCPF" required placeholder="000.000.000-00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+            <label class="text-slate-400 block mb-1">CPF *</label>
+            <input type="text" id="novoCPF" required placeholder="000.000.000-00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
           </div>
           <div>
-            <label class="text-xs text-slate-400 block mb-1">Código QR Code</label>
-            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+            <label class="text-slate-400 block mb-1">QR Code</label>
+            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-xs text-slate-400 block mb-1">Área / Palco</label>
-            <input type="text" id="novoArea" placeholder="ex: Palco Principal" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+            <label class="text-slate-400 block mb-1">Área / Palco</label>
+            <input type="text" id="novoArea" placeholder="ex: Palco Principal" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
           </div>
           <div>
-            <label class="text-xs text-slate-400 block mb-1">Turno</label>
-            <select id="novoTurno" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+            <label class="text-slate-400 block mb-1">Turno</label>
+            <select id="novoTurno" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
               <option value="Manhã">Manhã</option>
               <option value="Tarde">Tarde</option>
               <option value="Noite">Noite</option>
@@ -246,15 +245,15 @@
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
-          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-4 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 font-medium">Cancelar</button>
-          <button type="submit" class="px-4 py-2 rounded-lg text-xs bg-[#00FF66] text-slate-950 font-bold">Salvar Voluntário</button>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancelar</button>
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#00FF66] text-slate-950 font-bold">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- SCRIPT -->
+  <!-- SCRIPT DA APLICAÇÃO -->
   <script>
     const DADOS_EXEMPLO = [
       { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', cpf: '123.456.789-00', area: 'Palco Principal', turno: 'Manhã', presente: true, entrada: '08:00', Saida: '--:--', horas: 4.5 },
@@ -304,35 +303,33 @@
           tr.className = "hover:bg-slate-900/50 transition";
 
           tr.innerHTML = `
-            <td class="p-4">
+            <td class="p-3">
               <div class="font-medium text-white">${v.nome}</div>
-              <div class="text-xs text-slate-500 font-mono">CPF: ${v.cpf}</div>
+              <div class="text-[10px] text-slate-500 font-mono">CPF: ${v.cpf}</div>
             </td>
-            <td class="p-4">
-              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono bg-slate-900 border border-slate-700 text-cyan-400">
+            <td class="p-3">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-slate-900 border border-slate-700 text-cyan-400">
                 ${v.qrcode || 'N/A'}
               </span>
             </td>
-            <td class="p-4">
-              <div class="text-xs text-slate-300">${v.area || 'Geral'}</div>
-              <div class="text-[10px] text-slate-500 uppercase">${v.turno || 'Integral'}</div>
+            <td class="p-3">
+              <div class="text-slate-300">${v.area || 'Geral'}</div>
+              <div class="text-[9px] text-slate-500 uppercase">${v.turno || 'Integral'}</div>
             </td>
-            <td class="p-4">
+            <td class="p-3">
               ${v.presente 
-                ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Presente</span>`
-                : `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Ausente</span>`
+                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Presente</span>`
+                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Ausente</span>`
               }
             </td>
-            <td class="p-4 font-mono text-xs text-slate-300">${v.entrada || '--:--'}</td>
-            <td class="p-4 font-mono text-xs text-slate-300">${v.Saida || '--:--'}</td>
-            <td class="p-4">
-              <div class="text-xs font-bold text-white">${v.horas ? v.horas.toFixed(1) : '0.0'} h</div>
+            <td class="p-3 font-mono text-[11px] text-slate-300">
+              ${v.entrada || '--:--'} / ${v.Saida || '--:--'}
             </td>
-            <td class="p-4 text-right space-x-2">
-              <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${v.presente ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'} transition">
-                ${v.presente ? 'Check-out' : 'Check-in'}
+            <td class="p-3 text-right space-x-1">
+              <button onclick="alternarPonto('${v.id}')" class="px-2.5 py-1 rounded text-[11px] font-bold ${v.presente ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">
+                ${v.presente ? 'Out' : 'In'}
               </button>
-              <button onclick="excluirVoluntario('${v.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 transition">
+              <button onclick="excluirVoluntario('${v.id}')" class="text-slate-500 hover:text-rose-400 p-1">
                 ✕
               </button>
             </td>
@@ -347,7 +344,7 @@
       document.getElementById('metricConcluidos').innerText = concluidos;
     }
 
-    // CHECK-IN / CHECK-OUT RÁPIDO VIA TERMO / QR CODE
+    // CHECK-IN / CHECK-OUT RÁPIDO VIA QR CODE
     function processarPontoKiosk(e) {
       if (e) e.preventDefault();
       const input = document.getElementById('inputKiosk');
@@ -364,15 +361,15 @@
 
       if (voluntario) {
         alternarPonto(voluntario.id);
-        msg.className = "text-xs mt-2 font-bold text-emerald-400";
-        msg.innerText = `✓ Ponto registrado para ${voluntario.nome} (${voluntario.presente ? 'Check-in' : 'Check-out'})`;
+        msg.className = "text-xs mt-1 font-bold text-emerald-400";
+        msg.innerText = `✓ Ponto registrado: ${voluntario.nome} (${voluntario.presente ? 'Check-in' : 'Check-out'})`;
         input.value = '';
       } else {
-        msg.className = "text-xs mt-2 font-bold text-rose-400";
-        msg.innerText = `✗ Nenhum voluntário localizado com o código: "${termo}"`;
+        msg.className = "text-xs mt-1 font-bold text-rose-400";
+        msg.innerText = `✗ Não encontrado: "${termo}"`;
       }
 
-      setTimeout(() => { msg.innerText = ''; }, 4000);
+      setTimeout(() => { msg.innerText = ''; }, 3500);
     }
 
     function alternarPonto(id) {
@@ -401,16 +398,14 @@
       document.getElementById('modalCamera').classList.remove('hidden');
       
       if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 200, height: 200 } }, false);
       }
       
       html5QrcodeScanner.render((qrCodeMessage) => {
         document.getElementById('inputKiosk').value = qrCodeMessage;
         processarPontoKiosk();
         fecharModalCamera();
-      }, (errorMessage) => {
-        // Leitura contínua
-      });
+      }, (errorMessage) => {});
     }
 
     function fecharModalCamera() {
@@ -421,7 +416,7 @@
     }
 
     function excluirVoluntario(id) {
-      if (confirm("Tem certeza que deseja remover este voluntário?")) {
+      if (confirm("Remover este voluntário?")) {
         voluntarios = voluntarios.filter(v => v.id !== id);
         salvarStorage();
         renderizarTabela();
@@ -429,7 +424,7 @@
     }
 
     function limparTodosDados() {
-      if (confirm("ATENÇÃO: Isto apagará TODOS os voluntários do sistema. Deseja continuar?")) {
+      if (confirm("Apagar TODOS os dados registrados?")) {
         voluntarios = [];
         salvarStorage();
         renderizarTabela();
@@ -505,7 +500,7 @@
 
         salvarStorage();
         renderizarTabela();
-        alert(`${novos} voluntários importados com sucesso!`);
+        alert(`${novos} voluntários importados!`);
       };
       reader.readAsArrayBuffer(file);
     }
