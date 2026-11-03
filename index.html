@@ -2,335 +2,210 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <!-- Meta Viewport ajustado para Mobile (impede zoom indesejado no teclado do iPhone/Android) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  
-  <!-- METATAGS ANTI-CACHE (Força o telemóvel a carregar sempre a versão mais recente do GitHub Pages) -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <title>Campus Party - Controle de Voluntários em Nuvem</title>
 
-  <title>Campus Party - Controle de Voluntários</title>
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- SheetJS para manipulação de Excel (.xlsx) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  
-  <!-- HTML5 QR Code Scanner via Câmera -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
+  <!-- Firebase Realtime Database SDK (v10) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // Suas chaves do Firebase integradas
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgL2rC5UqL1Hrdy2Rq26E0-fEbsS_OSqU",
+      authDomain: "campus-party-voluntarios.firebaseapp.com",
+      databaseURL: "https://campus-party-voluntarios-default-rtdb.firebaseio.com",
+      projectId: "campus-party-voluntarios",
+      storageBucket: "campus-party-voluntarios.firebasestorage.app",
+      messagingSenderId: "1005886477164",
+      appId: "1:1005886477164:web:4656364da687ccabc95949"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'voluntarios');
+
+    window.voluntarios = [];
+
+    // ESCUTA EM TEMPO REAL: Atualiza instantaneamente todos os celulares e computadores conectados
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        window.voluntarios = Array.isArray(data) ? data : Object.values(data);
+      } else {
+        window.voluntarios = [
+          { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', cpf: '123.456.789-00', presente: false, entrada: '--:--', Saida: '--:--' },
+          { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', cpf: '987.654.321-11', presente: false, entrada: '--:--', Saida: '--:--' }
+        ];
+      }
+      window.renderizarTabela();
+    });
+
+    window.salvarNuvem = function() {
+      set(dbRef, window.voluntarios);
+    }
+  </script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
-
-    :root {
-      --cp-green: #00FF66;
-      --cp-blue: #00E5FF;
-      --cp-purple: #7000FF;
-      --cp-dark: #0A0E17;
-      --cp-card: #131927;
-    }
-
-    body {
-      background-color: var(--cp-dark);
-      color: #E2E8F0;
-      font-family: 'Inter', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;700&display=swap');
+    body { background-color: #0A0E17; color: #E2E8F0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
     .font-orbitron { font-family: 'Orbitron', sans-serif; }
-    .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
-
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0A0E17; }
-    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
-
-    #reader video {
-      border-radius: 12px;
-      object-fit: cover;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased">
 
-  <!-- TOPBAR -->
-  <header class="bg-[#131927] border-b border-slate-800 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+  <!-- HEADER -->
+  <header class="bg-[#131927] border-b border-slate-800 sticky top-0 z-40 p-3">
+    <div class="max-w-7xl mx-auto flex justify-between items-center gap-2">
       <div class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00FF66] to-[#00E5FF] flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg font-orbitron">
-          CP
-        </div>
+        <div class="w-8 h-8 rounded-lg bg-[#00FF66] text-slate-950 font-bold flex items-center justify-center font-orbitron">CP</div>
         <div>
-          <h1 class="font-orbitron font-bold text-base text-white tracking-wide">CAMPUS PARTY</h1>
-          <p class="text-[10px] text-slate-400 font-rajdhani uppercase tracking-wider">Controle de Voluntários</p>
+          <h1 class="font-orbitron font-bold text-sm text-white">CAMPUS PARTY</h1>
+          <span class="text-[10px] text-cyan-400 font-sans block leading-none">☁️ Nuvem Ativa</span>
         </div>
       </div>
-
-      <!-- Relógio Digital -->
-      <div class="bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 flex items-center gap-2">
-        <svg class="w-3.5 h-3.5 text-[#00FF66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span id="relogioDigital" class="font-orbitron text-xs font-bold text-[#00FF66]">00:00:00</span>
-      </div>
-
-      <!-- Ações rápidas no Mobile -->
-      <div class="flex items-center gap-1.5 flex-wrap">
-        <button onclick="baixarModeloExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700">
-          Modelo
-        </button>
-        <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700 cursor-pointer">
-          Importar
+      <div id="relogioDigital" class="font-orbitron text-xs text-[#00FF66] font-bold">00:00:00</div>
+      <div class="flex gap-1.5">
+        <label class="bg-slate-800 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+          Importar Excel
           <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
         </label>
-        <button onclick="exportarExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] px-2.5 py-1.5 rounded-lg transition border border-slate-700">
-          Exportar
-        </button>
-        <button onclick="abrirModalNovoVoluntario()" class="bg-[#00FF66] hover:opacity-90 text-slate-950 text-[11px] font-bold px-3 py-1.5 rounded-lg transition shadow-md">
-          + Voluntário
-        </button>
+        <button onclick="abrirModalNovoVoluntario()" class="bg-[#00FF66] text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg">+ Novo</button>
       </div>
     </div>
   </header>
 
-  <!-- CONTEÚDO PRINCIPAL -->
   <main class="max-w-7xl mx-auto px-4 py-4 flex-1 w-full space-y-4">
 
-    <!-- TERMINAL KIOSK / LEITOR DE QR CODE -->
-    <section class="bg-gradient-to-r from-slate-900 via-[#131927] to-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl space-y-3">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-        <div>
-          <span class="text-[10px] font-bold font-rajdhani text-[#00FF66] uppercase tracking-widest flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-[#00FF66] animate-ping"></span> Terminal Rápido
-          </span>
-          <h2 class="text-base font-bold font-orbitron text-white">Check-in / Check-out</h2>
-        </div>
-        
-        <button onclick="abrirModalCamera()" class="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
-          📷 Abrir Câmera do Telemóvel
+    <!-- TERMINAL DE PONTO -->
+    <section class="bg-[#131927] p-4 rounded-2xl border border-slate-800 space-y-3">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+        <h2 class="text-sm font-bold font-orbitron text-white">Check-in / Check-out Instantâneo</h2>
+        <button onclick="abrirModalCamera()" class="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
+          📷 Abrir Câmera do Celular
         </button>
       </div>
 
-      <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="flex flex-col sm:flex-row gap-2">
-        <input type="text" id="inputKiosk" placeholder="Escaneie o QR Code ou digite..." class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-3 text-white placeholder-slate-500 focus:outline-none focus:border-[#00FF66] transition font-mono text-sm">
-        <button type="submit" class="bg-[#00FF66] text-slate-950 font-bold px-6 py-3 rounded-xl transition font-orbitron text-xs active:scale-95">
-          REGISTAR
-        </button>
+      <form onsubmit="processarPontoKiosk(event)" class="flex gap-2">
+        <input type="text" id="inputKiosk" placeholder="Escaneie o QR Code ou digite..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-sm focus:outline-none focus:border-[#00FF66]">
+        <button type="submit" class="bg-[#00FF66] text-slate-950 font-bold px-5 py-3 rounded-xl font-orbitron text-xs">REGISTRAR</button>
       </form>
-      <p id="msgKiosk" class="text-xs h-4 transition-all font-medium"></p>
+      <div id="msgKiosk" class="text-xs min-h-[20px] font-bold"></div>
     </section>
 
-    <!-- MÉTRICAS -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="bg-[#131927] p-3.5 rounded-xl border border-slate-800">
-        <p class="text-[11px] font-medium text-slate-400">Total Cadastrados</p>
-        <p id="metricTotal" class="text-xl font-bold font-orbitron text-white mt-0.5">0</p>
+    <!-- METRICAS -->
+    <section class="grid grid-cols-3 gap-2 text-center">
+      <div class="bg-[#131927] p-3 rounded-xl border border-slate-800">
+        <p class="text-[10px] text-slate-400">Total</p>
+        <p id="metricTotal" class="text-lg font-bold font-orbitron text-white">0</p>
       </div>
-      <div class="bg-[#131927] p-3.5 rounded-xl border border-emerald-500/20">
-        <p class="text-[11px] font-medium text-emerald-400">Presentes Agora</p>
-        <p id="metricPresentes" class="text-xl font-bold font-orbitron text-emerald-400 mt-0.5">0</p>
+      <div class="bg-[#131927] p-3 rounded-xl border border-emerald-500/30">
+        <p class="text-[10px] text-emerald-400">Presentes</p>
+        <p id="metricPresentes" class="text-lg font-bold font-orbitron text-emerald-400">0</p>
       </div>
-      <div class="bg-[#131927] p-3.5 rounded-xl border border-rose-500/20">
-        <p class="text-[11px] font-medium text-rose-400">Ausentes</p>
-        <p id="metricAusentes" class="text-xl font-bold font-orbitron text-rose-400 mt-0.5">0</p>
-      </div>
-      <div class="bg-[#131927] p-3.5 rounded-xl border border-cyan-500/20">
-        <p class="text-[11px] font-medium text-cyan-400">Meta Cumprida</p>
-        <p id="metricConcluidos" class="text-xl font-bold font-orbitron text-cyan-400 mt-0.5">0</p>
+      <div class="bg-[#131927] p-3 rounded-xl border border-rose-500/30">
+        <p class="text-[10px] text-rose-400">Ausentes</p>
+        <p id="metricAusentes" class="text-lg font-bold font-orbitron text-rose-400">0</p>
       </div>
     </section>
 
-    <!-- LISTA E TABELA RESPONSIVA -->
-    <section class="bg-[#131927] rounded-2xl border border-slate-800 p-4 shadow-xl space-y-3">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <h3 class="text-base font-bold text-white font-orbitron">Painel de Voluntários</h3>
-
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar nome, CPF ou QR Code..." class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#00FF66]">
-          
-          <div class="flex items-center gap-2">
-            <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-2 flex-1 focus:outline-none focus:border-[#00FF66]">
-              <option value="todos">Todos</option>
-              <option value="presente">Presentes</option>
-              <option value="ausente">Ausentes</option>
-            </select>
-
-            <button onclick="limparTodosDados()" class="text-xs text-rose-400 px-2.5 py-2 rounded-lg border border-rose-500/30 hover:bg-rose-500/10">
-              Limpar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tabela com Scroll Horizontal suave no telemóvel -->
-      <div class="overflow-x-auto rounded-xl border border-slate-800">
-        <table class="w-full text-left border-collapse min-w-[600px]">
+    <!-- TABELA -->
+    <section class="bg-[#131927] rounded-2xl border border-slate-800 p-4 space-y-3">
+      <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar por Nome, CPF ou QR Code..." class="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg p-2">
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs min-w-[500px]">
           <thead>
-            <tr class="bg-slate-900/80 text-slate-400 text-[11px] font-semibold uppercase tracking-wider border-b border-slate-800">
-              <th class="p-3">Voluntário</th>
-              <th class="p-3">QR Code</th>
-              <th class="p-3">Área / Turno</th>
-              <th class="p-3">Status</th>
-              <th class="p-3">Entrada / Saída</th>
-              <th class="p-3 text-right">Ação</th>
+            <tr class="text-slate-400 border-b border-slate-800 pb-2">
+              <th class="p-2">Voluntário</th>
+              <th class="p-2">QR Code</th>
+              <th class="p-2">Status</th>
+              <th class="p-2">Entrada/Saída</th>
+              <th class="p-2 text-right">Ação</th>
             </tr>
           </thead>
-          <tbody id="tabelaCorpo" class="divide-y divide-slate-800 text-xs">
-            <!-- Renderizado via JS -->
-          </tbody>
+          <tbody id="tabelaCorpo" class="divide-y divide-slate-800"></tbody>
         </table>
       </div>
     </section>
-
   </main>
 
-  <!-- MODAL: CÂMERA SCANNER QR CODE -->
-  <div id="modalCamera" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-        <h3 class="font-orbitron font-bold text-white text-sm flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Leitor QR Code
-        </h3>
-        <button onclick="fecharModalCamera()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
+  <!-- MODAL CÂMERA -->
+  <div id="modalCamera" class="fixed inset-0 bg-slate-950/90 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-4 space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-orbitron font-bold text-white text-sm">Escanear QR Code</h3>
+        <button onclick="fecharModalCamera()" class="text-white font-bold">✕</button>
       </div>
-
-      <div class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 p-1">
-        <div id="reader" class="w-full"></div>
-      </div>
-
-      <p id="msgCamera" class="text-center text-[11px] text-slate-400">Aponte a câmara para o QR Code do crachá</p>
-
-      <button onclick="fecharModalCamera()" class="w-full py-2 rounded-xl text-xs bg-slate-800 text-slate-300 font-medium">Fechar Câmera</button>
+      <div id="reader" class="w-full rounded-xl overflow-hidden bg-black"></div>
+      <button onclick="fecharModalCamera()" class="w-full py-2 bg-slate-800 text-xs rounded-xl text-slate-300">Cancelar</button>
     </div>
   </div>
 
-  <!-- MODAL: NOVO VOLUNTÁRIO -->
-  <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-        <h3 class="font-orbitron font-bold text-white text-sm">Cadastrar Voluntário</h3>
-        <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
-      </div>
-
-      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-2.5 text-xs">
-        <div>
-          <label class="text-slate-400 block mb-1">Nome Completo *</label>
-          <input type="text" id="novoNome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-slate-400 block mb-1">CPF *</label>
-            <input type="text" id="novoCPF" required placeholder="000.000.000-00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
-          </div>
-          <div>
-            <label class="text-slate-400 block mb-1">QR Code</label>
-            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-slate-400 block mb-1">Área / Palco</label>
-            <input type="text" id="novoArea" placeholder="ex: Palco Principal" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
-          </div>
-          <div>
-            <label class="text-slate-400 block mb-1">Turno</label>
-            <select id="novoTurno" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-[#00FF66]">
-              <option value="Manhã">Manhã</option>
-              <option value="Tarde">Tarde</option>
-              <option value="Noite">Noite</option>
-              <option value="Madrugada">Madrugada</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancelar</button>
-          <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#00FF66] text-slate-950 font-bold">Salvar</button>
+  <!-- MODAL NOVO VOLUNTÁRIO -->
+  <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-950/90 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-sm w-full p-4 space-y-3">
+      <h3 class="font-orbitron font-bold text-white text-sm">Novo Voluntário</h3>
+      <form onsubmit="salvarNovoVoluntario(event)" class="space-y-2 text-xs">
+        <input type="text" id="novoNome" required placeholder="Nome Completo *" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+        <input type="text" id="novoCPF" required placeholder="CPF *" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+        <input type="text" id="novoQRCode" placeholder="Código QR Code (ex: 4e-6123699472)" class="w-full bg-slate-900 border border-slate-700 p-2 rounded text-white">
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-3 py-1.5 bg-slate-800 rounded">Cancelar</button>
+          <button type="submit" class="px-3 py-1.5 bg-[#00FF66] text-slate-950 font-bold rounded">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- SCRIPT DA APLICAÇÃO -->
   <script>
-    const DADOS_EXEMPLO = [
-      { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', cpf: '123.456.789-00', area: 'Palco Principal', turno: 'Manhã', presente: true, entrada: '08:00', Saida: '--:--', horas: 4.5 },
-      { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', cpf: '987.654.321-11', area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '09:15', Saida: '15:30', horas: 6.25 },
-      { id: '3', qrcode: '4e-6140873624', nome: 'Gabriel Santos', cpf: '456.789.123-22', area: 'Arena Gamer', turno: 'Noite', presente: false, entrada: '--:--', Saida: '--:--', horas: 0 },
-      { id: '4', qrcode: '4e-33946c3c47', nome: 'Beatriz Lima', cpf: '321.654.987-33', area: 'Workshops', turno: 'Manhã', presente: true, entrada: '10:00', Saida: '--:--', horas: 2.5 }
-    ];
-
-    let voluntarios = JSON.parse(localStorage.getItem('cp_voluntarios')) || DADOS_EXEMPLO;
     let html5QrcodeScanner = null;
 
-    function salvarStorage() {
-      localStorage.setItem('cp_voluntarios', JSON.stringify(voluntarios));
-    }
-
-    // RELÓGIO DIGITAL
     setInterval(() => {
-      const agora = new Date();
-      document.getElementById('relogioDigital').innerText = agora.toLocaleTimeString('pt-BR');
+      document.getElementById('relogioDigital').innerText = new Date().toLocaleTimeString('pt-BR');
     }, 1000);
 
-    // RENDERIZAR TABELA
-    function renderizarTabela() {
-      const corpo = document.getElementById('tabelaCorpo');
-      const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
-      const filtroStatus = document.getElementById('filtroStatus').value;
+    // Normaliza textos e remove espaços ocultos para garantir o match no QR Code
+    function limparTexto(txt) {
+      return String(txt || '').trim().toLowerCase().replace(/[\s\r\n]/g, '');
+    }
 
+    window.renderizarTabela = function() {
+      const corpo = document.getElementById('tabelaCorpo');
+      const filtro = limparTexto(document.getElementById('filtroTexto').value);
       corpo.innerHTML = '';
 
-      let total = voluntarios.length;
       let presentes = 0;
-      let concluidos = 0;
+      const lista = window.voluntarios || [];
 
-      voluntarios.forEach(v => {
+      lista.forEach(v => {
         if (v.presente) presentes++;
-        if (v.horas >= 6) concluidos++;
 
-        const atendeTexto = v.nome.toLowerCase().includes(filtroTexto) || 
-                             v.cpf.includes(filtroTexto) || 
-                             (v.qrcode && v.qrcode.toLowerCase().includes(filtroTexto));
-        const atendeStatus = filtroStatus === 'todos' || 
-                             (filtroStatus === 'presente' && v.presente) || 
-                             (filtroStatus === 'ausente' && !v.presente);
+        const matchNome = limparTexto(v.nome).includes(filtro);
+        const matchCPF = limparTexto(v.cpf).includes(filtro);
+        const matchQR = limparTexto(v.qrcode).includes(filtro);
 
-        if (atendeTexto && atendeStatus) {
+        if (!filtro || matchNome || matchCPF || matchQR) {
           const tr = document.createElement('tr');
-          tr.className = "hover:bg-slate-900/50 transition";
-
           tr.innerHTML = `
-            <td class="p-3">
-              <div class="font-medium text-white">${v.nome}</div>
-              <div class="text-[10px] text-slate-500 font-mono">CPF: ${v.cpf}</div>
-            </td>
-            <td class="p-3">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-slate-900 border border-slate-700 text-cyan-400">
-                ${v.qrcode || 'N/A'}
+            <td class="p-2 font-medium text-white">${v.nome}</td>
+            <td class="p-2 font-mono text-cyan-400">${v.qrcode || 'N/A'}</td>
+            <td class="p-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${v.presente ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}">
+                ${v.presente ? 'Presente' : 'Ausente'}
               </span>
             </td>
-            <td class="p-3">
-              <div class="text-slate-300">${v.area || 'Geral'}</div>
-              <div class="text-[9px] text-slate-500 uppercase">${v.turno || 'Integral'}</div>
-            </td>
-            <td class="p-3">
-              ${v.presente 
-                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Presente</span>`
-                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Ausente</span>`
-              }
-            </td>
-            <td class="p-3 font-mono text-[11px] text-slate-300">
-              ${v.entrada || '--:--'} / ${v.Saida || '--:--'}
-            </td>
-            <td class="p-3 text-right space-x-1">
-              <button onclick="alternarPonto('${v.id}')" class="px-2.5 py-1 rounded text-[11px] font-bold ${v.presente ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">
+            <td class="p-2 font-mono text-slate-400">${v.entrada} / ${v.Saida}</td>
+            <td class="p-2 text-right">
+              <button onclick="alternarPonto('${v.id}')" class="px-2 py-1 rounded font-bold ${v.presente ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">
                 ${v.presente ? 'Out' : 'In'}
-              </button>
-              <button onclick="excluirVoluntario('${v.id}')" class="text-slate-500 hover:text-rose-400 p-1">
-                ✕
               </button>
             </td>
           `;
@@ -338,135 +213,90 @@
         }
       });
 
-      document.getElementById('metricTotal').innerText = total;
+      document.getElementById('metricTotal').innerText = lista.length;
       document.getElementById('metricPresentes').innerText = presentes;
-      document.getElementById('metricAusentes').innerText = total - presentes;
-      document.getElementById('metricConcluidos').innerText = concluidos;
-    }
+      document.getElementById('metricAusentes').innerText = lista.length - presentes;
+    };
 
-    // CHECK-IN / CHECK-OUT RÁPIDO VIA QR CODE
     function processarPontoKiosk(e) {
       if (e) e.preventDefault();
       const input = document.getElementById('inputKiosk');
-      const termo = input.value.trim().toLowerCase();
+      const codigoLido = limparTexto(input.value);
       const msg = document.getElementById('msgKiosk');
 
-      if (!termo) return;
+      if (!codigoLido) return;
 
-      const voluntario = voluntarios.find(v => 
-        (v.qrcode && v.qrcode.toLowerCase() === termo) ||
-        (v.cpf && v.cpf.replace(/\D/g, '') === termo.replace(/\D/g, '')) ||
-        (v.nome && v.nome.toLowerCase() === termo)
+      const v = window.voluntarios.find(item => 
+        limparTexto(item.qrcode) === codigoLido ||
+        limparTexto(item.cpf) === codigoLido ||
+        limparTexto(item.nome) === codigoLido
       );
 
-      if (voluntario) {
-        alternarPonto(voluntario.id);
-        msg.className = "text-xs mt-1 font-bold text-emerald-400";
-        msg.innerText = `✓ Ponto registrado: ${voluntario.nome} (${voluntario.presente ? 'Check-in' : 'Check-out'})`;
+      if (v) {
+        alternarPonto(v.id);
+        msg.className = "text-xs font-bold text-emerald-400";
+        msg.innerText = `✓ Registrado: ${v.nome} (${v.presente ? 'CHECK-IN' : 'CHECK-OUT'})`;
         input.value = '';
       } else {
-        msg.className = "text-xs mt-1 font-bold text-rose-400";
-        msg.innerText = `✗ Não encontrado: "${termo}"`;
+        msg.className = "text-xs font-bold text-rose-400";
+        msg.innerText = `✗ Código não encontrado no cadastro: "${input.value.trim()}"`;
       }
-
-      setTimeout(() => { msg.innerText = ''; }, 3500);
     }
 
     function alternarPonto(id) {
-      const v = voluntarios.find(item => item.id === id);
+      const v = window.voluntarios.find(item => item.id === id);
       if (!v) return;
 
-      const agora = new Date();
-      const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
       if (!v.presente) {
         v.presente = true;
-        v.entrada = horaFormatada;
-        v.Saida = '--:--';
+        v.entrada = hora;
       } else {
         v.presente = false;
-        v.Saida = horaFormatada;
-        v.horas = (v.horas || 0) + 4.0;
+        v.Saida = hora;
       }
 
-      salvarStorage();
-      renderizarTabela();
+      window.salvarNuvem();
     }
 
-    // LEITOR DE CÂMERA AO VIVO
     function abrirModalCamera() {
       document.getElementById('modalCamera').classList.remove('hidden');
-      
       if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 200, height: 200 } }, false);
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
       }
-      
       html5QrcodeScanner.render((qrCodeMessage) => {
         document.getElementById('inputKiosk').value = qrCodeMessage;
         processarPontoKiosk();
         fecharModalCamera();
-      }, (errorMessage) => {});
+      }, (error) => {});
     }
 
     function fecharModalCamera() {
       document.getElementById('modalCamera').classList.add('hidden');
       if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(error => console.error(error));
+        html5QrcodeScanner.clear().catch(err => console.error(err));
       }
     }
 
-    function excluirVoluntario(id) {
-      if (confirm("Remover este voluntário?")) {
-        voluntarios = voluntarios.filter(v => v.id !== id);
-        salvarStorage();
-        renderizarTabela();
-      }
-    }
-
-    function limparTodosDados() {
-      if (confirm("Apagar TODOS os dados registrados?")) {
-        voluntarios = [];
-        salvarStorage();
-        renderizarTabela();
-      }
-    }
-
-    // MODAL NOVO VOLUNTÁRIO
-    function abrirModalNovoVoluntario() {
-      document.getElementById('modalNovoVoluntario').classList.remove('hidden');
-    }
-    function fecharModalNovoVoluntario() {
-      document.getElementById('modalNovoVoluntario').classList.add('hidden');
-    }
+    function abrirModalNovoVoluntario() { document.getElementById('modalNovoVoluntario').classList.remove('hidden'); }
+    function fecharModalNovoVoluntario() { document.getElementById('modalNovoVoluntario').classList.add('hidden'); }
 
     function salvarNovoVoluntario(e) {
       e.preventDefault();
-      const nome = document.getElementById('novoNome').value;
-      const cpf = document.getElementById('novoCPF').value;
-      const qrcode = document.getElementById('novoQRCode').value || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
-      const area = document.getElementById('novoArea').value;
-      const turno = document.getElementById('novoTurno').value;
-
-      voluntarios.push({
+      window.voluntarios.push({
         id: Date.now().toString(),
-        qrcode: qrcode,
-        nome: nome,
-        cpf: cpf,
-        area: area || 'Geral',
-        turno: turno,
+        nome: document.getElementById('novoNome').value.trim(),
+        cpf: document.getElementById('novoCPF').value.trim(),
+        qrcode: document.getElementById('novoQRCode').value.trim(),
         presente: false,
         entrada: '--:--',
-        Saida: '--:--',
-        horas: 0
+        Saida: '--:--'
       });
-
-      salvarStorage();
-      renderizarTabela();
+      window.salvarNuvem();
       fecharModalNovoVoluntario();
-      document.getElementById('formNovoVoluntario').reset();
     }
 
-    // EXCEL IMPORT/EXPORT
     function importarExcel(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -475,71 +305,28 @@
       reader.onload = function(evt) {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(firstSheet);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
 
-        let novos = 0;
         json.forEach(row => {
-          const nome = row['Nome'] || row['NOME'] || row['nome'];
+          const nome = row['Nome'] || row['NOME'];
           if (nome) {
-            voluntarios.push({
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-              qrcode: row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
-              nome: nome,
-              cpf: row['CPF'] || row['cpf'] || '000.000.000-00',
-              area: row['Área / Palco'] || row['Area'] || row['Área'] || 'Geral',
-              turno: row['Turno'] || 'Manhã',
+            window.voluntarios.push({
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+              nome: String(nome).trim(),
+              cpf: String(row['CPF'] || '000.000.000-00').trim(),
+              qrcode: String(row['QRCODE'] || row['QR CODE'] || row['qrcode'] || '').trim(),
               presente: false,
               entrada: '--:--',
-              Saida: '--:--',
-              horas: 0
+              Saida: '--:--'
             });
-            novos++;
           }
         });
-
-        salvarStorage();
-        renderizarTabela();
-        alert(`${novos} voluntários importados!`);
+        window.salvarNuvem();
+        alert("Planilha importada e sincronizada na nuvem!");
       };
       reader.readAsArrayBuffer(file);
     }
-
-    function baixarModeloExcel() {
-      const modelo = [
-        ["Nome", "CPF", "QRCODE", "Área / Palco", "Turno"],
-        ["João Silva", "123.456.789-00", "4e-6123699472", "Palco Principal", "Manhã"],
-        ["Maria Santos", "987.654.321-11", "4e-6135589499", "Credenciamento", "Tarde"]
-      ];
-
-      const ws = XLSX.utils.aoa_to_sheet(modelo);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Voluntários");
-      XLSX.writeFile(wb, "modelo_voluntarios_campus_party.xlsx");
-    }
-
-    function exportarExcel() {
-      const dados = voluntarios.map(v => ({
-        "Nome": v.nome,
-        "CPF": v.cpf,
-        "QRCODE": v.qrcode || '',
-        "Área": v.area,
-        "Turno": v.turno,
-        "Status": v.presente ? "Presente" : "Ausente",
-        "Entrada": v.entrada,
-        "Saída": v.Saida,
-        "Horas Totais": v.horas
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(dados);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Relatório Voluntários");
-      XLSX.writeFile(wb, `relatorio_campus_party_${new Date().toISOString().slice(0,10)}.xlsx`);
-    }
-
-    window.onload = () => {
-      renderizarTabela();
-    };
   </script>
 </body>
 </html>
