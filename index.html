@@ -3,233 +3,548 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Campus Party - Controle de Voluntários & QR Code</title>
+  <title>Campus Party - Controle de Voluntários</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- HTML5 QR Code Scanner -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- SheetJS para manipulação de Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- HTML5 QR Code Scanner via Câmera -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@500;600;700&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --cp-green: #00FF66;
+      --cp-blue: #00E5FF;
+      --cp-purple: #7000FF;
+      --cp-dark: #0A0E17;
+      --cp-card: #131927;
+    }
+
     body {
-      font-family: 'Rajdhani', sans-serif;
-      background-color: #0b0f19;
-      color: #e2e8f0;
+      background-color: var(--cp-dark);
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
     }
 
-    .font-tech {
-      font-family: 'Orbitron', sans-serif;
-    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
 
-    .glass-card {
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 255, 102, 0.15);
-    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0A0E17; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00FF66; }
 
-    .glow-green {
-      box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
-    }
-
-    /* Leitor de QR Code Customizado */
-    #qr-reader {
-      border: none !important;
-      border-radius: 1rem;
-      overflow: hidden;
-    }
-    #qr-reader video {
-      border-radius: 1rem;
-      object-fit: cover !important;
+    #reader video {
+      border-radius: 12px;
+      object-fit: cover;
     }
   </style>
 </head>
-<body class="min-h-screen pb-12">
+<body class="min-h-screen flex flex-col">
 
-  <!-- TOPBAR / HEADER -->
-  <header class="border-b border-emerald-500/20 bg-slate-900/90 sticky top-0 z-50 backdrop-blur-md">
+  <!-- TOPBAR -->
+  <header class="bg-[#131927] border-b border-slate-800 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-          <i data-lucide="qr-code" class="w-6 h-6"></i>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00FF66] to-[#00E5FF] flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg font-orbitron">
+          CP
         </div>
         <div>
-          <h1 class="font-tech text-lg font-bold text-white tracking-wider flex items-center gap-2">
-            CPBR <span class="text-emerald-400">VOLUNTEERS</span>
-          </h1>
-          <p class="text-xs text-slate-400">Integração 4.events & Control System</p>
+          <h1 class="font-orbitron font-bold text-lg text-white tracking-wide">CAMPUS PARTY</h1>
+          <p class="text-xs text-slate-400 font-rajdhani uppercase tracking-wider">Gestão de Voluntários</p>
         </div>
       </div>
 
-      <!-- BOTÕES DE MODO (GESTOR vs SCANNER MOBILE) -->
-      <div class="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-        <button id="btn-tab-scanner" onclick="trocarAba('scanner')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20">
-          <i data-lucide="camera" class="w-4 h-4"></i> Leitor QR (Mobile)
+      <!-- Relógio Digital -->
+      <div class="bg-slate-900/80 px-4 py-1.5 rounded-lg border border-slate-800 flex items-center gap-3">
+        <svg class="w-4 h-4 text-[#00FF66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span id="relogioDigital" class="font-orbitron text-sm font-bold text-[#00FF66]">00:00:00</span>
+      </div>
+
+      <!-- Ações rápidas -->
+      <div class="flex items-center gap-2">
+        <button onclick="baixarModeloExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Modelo Excel
         </button>
-        <button id="btn-tab-dashboard" onclick="trocarAba('dashboard')" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-2">
-          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Gestor
+        <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700 cursor-pointer">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Importar
+          <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
+        </label>
+        <button onclick="exportarExcel()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-slate-700">
+          <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Exportar
+        </button>
+        <button onclick="abrirModalNovoVoluntario()" class="bg-gradient-to-r from-[#00FF66] to-[#00E5FF] hover:opacity-90 text-slate-950 text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
+          + Novo Voluntário
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 mt-6">
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
 
-    <!-- =================================================== -->
-    <!-- ABA 1: SCANNER MOBILE (PARA COLLABS NOS PALCOS)     -->
-    <!-- =================================================== -->
-    <section id="sec-scanner" class="max-w-md mx-auto space-y-6">
-      
-      <!-- CÂMERA SCANNER -->
-      <div class="glass-card p-4 rounded-2xl border border-emerald-500/30 text-center">
-        <div class="flex justify-between items-center mb-3">
-          <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Câmera Ativa
+    <!-- TERMINAL KIOSK / REGISTRO RÁPIDO (COM SUPORTE A CÂMERA E QR CODE) -->
+    <section class="bg-gradient-to-r from-slate-900 via-[#131927] to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div>
+          <span class="text-xs font-bold font-rajdhani text-[#00FF66] uppercase tracking-widest flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#00FF66] animate-ping"></span> Terminal de Ponto Rápido
           </span>
-          <button onclick="alternarCamera()" class="text-slate-400 hover:text-white text-xs flex items-center gap-1">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Inverter
-          </button>
+          <h2 class="text-xl font-bold font-orbitron text-white">Check-in / Check-out Instantâneo</h2>
         </div>
-
-        <!-- Conteiner do HTML5 QR Code -->
-        <div id="qr-reader" class="w-full bg-slate-950 rounded-xl border border-slate-800 min-h-[280px] flex items-center justify-center"></div>
-
-        <p class="text-xs text-slate-400 mt-3">Aponte a câmera para o **QR Code da credencial 4.events** do voluntário.</p>
+        
+        <button onclick="abrirModalCamera()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l0.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l0.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          📷 Escanear via Câmera
+        </button>
       </div>
 
-      <!-- FEEDBACK DO ÚLTIMO CHECK-IN/OUT -->
-      <div id="scanner-feedback" class="hidden glass-card p-4 rounded-2xl border text-center transition-all">
-        <div id="feedback-icon" class="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center"></div>
-        <h3 id="feedback-nome" class="font-bold text-lg text-white">---</h3>
-        <p id="feedback-status" class="text-xs font-semibold uppercase tracking-wider my-1">---</p>
-        <p id="feedback-detalhes" class="text-xs text-slate-400">---</p>
-      </div>
-
-      <!-- MANUAL ID / ENTRADA RÁPIDA DE EMERGÊNCIA -->
-      <div class="glass-card p-4 rounded-2xl">
-        <label class="text-xs text-slate-400 block mb-2 font-medium">Entrada Manual por ID / Matrícula 4.events:</label>
-        <div class="flex gap-2">
-          <input type="text" id="input-manual-id" placeholder="Ex: VOL-101 ou CPF" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 flex-1">
-          <button onclick="processarManual()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs">
-            Confirmar
-          </button>
+      <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <input type="text" id="inputKiosk" placeholder="Escaneie o QR Code ou digite Nome / CPF..." class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:border-[#00FF66] transition font-mono text-base" autofocus>
         </div>
+        <button type="submit" class="bg-[#00FF66] hover:bg-[#00cc52] text-slate-950 font-bold px-8 py-3.5 rounded-xl transition font-orbitron text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#00FF66]/20">
+          REGISTRAR
+        </button>
+      </form>
+      <p id="msgKiosk" class="text-xs mt-2 h-4 transition-all font-medium"></p>
+    </section>
+
+    <!-- MÉTRICAS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-[#131927] p-5 rounded-2xl border border-slate-800">
+        <p class="text-xs font-medium text-slate-400">Total Cadastrados</p>
+        <p id="metricTotal" class="text-2xl font-bold font-orbitron text-white mt-1">0</p>
+      </div>
+      <div class="bg-[#131927] p-5 rounded-2xl border border-emerald-500/20">
+        <p class="text-xs font-medium text-emerald-400">Presentes Agora</p>
+        <p id="metricPresentes" class="text-2xl font-bold font-orbitron text-emerald-400 mt-1">0</p>
+      </div>
+      <div class="bg-[#131927] p-5 rounded-2xl border border-rose-500/20">
+        <p class="text-xs font-medium text-rose-400">Ausentes</p>
+        <p id="metricAusentes" class="text-2xl font-bold font-orbitron text-rose-400 mt-1">0</p>
+      </div>
+      <div class="bg-[#131927] p-5 rounded-2xl border border-cyan-500/20">
+        <p class="text-xs font-medium text-cyan-400">Meta Cumprirem Shift</p>
+        <p id="metricConcluidos" class="text-2xl font-bold font-orbitron text-cyan-400 mt-1">0</p>
       </div>
     </section>
 
-    <!-- =================================================== -->
-    <!-- ABA 2: DASHBOARD DO GESTOR                          -->
-    <!-- =================================================== -->
-    <section id="sec-dashboard" class="hidden space-y-6">
-      
-      <!-- CARDS DE MÉTRICAS -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="glass-card p-4 rounded-2xl">
-          <p class="text-xs text-slate-400 font-semibold">TOTAL CADASTRADOS</p>
-          <h2 id="metric-total" class="text-2xl font-tech font-bold text-white mt-1">0</h2>
+    <!-- LISTA E CONTROLES -->
+    <section class="bg-[#131927] rounded-2xl border border-slate-800 p-6 shadow-xl space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 class="text-lg font-bold text-white font-orbitron">Painel de Voluntários</h3>
+          <p class="text-xs text-slate-400">Gerencie a entrada, saída e relatórios por QR Code</p>
         </div>
-        <div class="glass-card p-4 rounded-2xl border-emerald-500/40">
-          <p class="text-xs text-emerald-400 font-semibold">PRESENTES AGORA</p>
-          <h2 id="metric-presentes" class="text-2xl font-tech font-bold text-emerald-400 mt-1">0</h2>
-        </div>
-        <div class="glass-card p-4 rounded-2xl">
-          <p class="text-xs text-amber-400 font-semibold">AUSENTES / FORA</p>
-          <h2 id="metric-ausentes" class="text-2xl font-tech font-bold text-amber-400 mt-1">0</h2>
-        </div>
-        <div class="glass-card p-4 rounded-2xl">
-          <p class="text-xs text-cyan-400 font-semibold">METAS CONCLUÍDAS</p>
-          <h2 id="metric-metas" class="text-2xl font-tech font-bold text-cyan-400 mt-1">0</h2>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar por nome, CPF ou QR Code..." class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 w-64 focus:outline-none focus:border-[#00FF66]">
+          
+          <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#00FF66]">
+            <option value="todos">Todos os Status</option>
+            <option value="presente">Presentes</option>
+            <option value="ausente">Ausentes</option>
+          </select>
+
+          <button onclick="limparTodosDados()" class="text-xs text-rose-400 hover:text-rose-300 px-3 py-2 rounded-lg border border-rose-500/30 hover:bg-rose-500/10 transition">
+            Limpar Tudo
+          </button>
         </div>
       </div>
 
-      <!-- TABELA DE PRESENÇA DOS VOLUNTÁRIOS -->
-      <div class="glass-card rounded-2xl overflow-hidden">
-        <div class="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4">
-          <h3 class="font-tech font-bold text-white text-sm">LISTA DE VOLUNTÁRIOS & STATUS EM TEMPO REAL</h3>
-          <div class="flex items-center gap-2">
-            <input type="text" id="input-busca" oninput="renderizarTabela()" placeholder="Buscar por nome ou palco..." class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-            <button onclick="exportarCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5">
-              <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV
-            </button>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-950/60 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                <th class="p-3">Voluntário</th>
-                <th class="p-3">Palco / Área</th>
-                <th class="p-3">Status</th>
-                <th class="p-3">Entrada</th>
-                <th class="p-3">Saída</th>
-                <th class="p-3">Horas Acumuladas</th>
-                <th class="p-3 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody id="tabela-voluntarios" class="divide-y divide-slate-800/50 text-xs">
-              <!-- Renderizado via JS -->
-            </tbody>
-          </table>
-        </div>
+      <!-- Tabela -->
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-900/80 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
+              <th class="p-4">Voluntário</th>
+              <th class="p-4">QR Code / Tag</th>
+              <th class="p-4">Área / Palco</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Entrada</th>
+              <th class="p-4">Saída</th>
+              <th class="p-4">Horas</th>
+              <th class="p-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaCorpo" class="divide-y divide-slate-800 text-sm">
+            <!-- Renderizado via JS -->
+          </tbody>
+        </table>
       </div>
-
     </section>
 
   </main>
 
-  <!-- SCRIPT COMPLETO DE LÓGICA E SCANNER -->
+  <!-- MODAL: CÂMERA SCANNER QR CODE -->
+  <div id="modalCamera" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-orbitron font-bold text-white text-lg flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Leitor de QR Code
+        </h3>
+        <button onclick="fecharModalCamera()" class="text-slate-400 hover:text-white font-bold text-xl">✕</button>
+      </div>
+
+      <div class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 p-2">
+        <div id="reader" class="w-full"></div>
+      </div>
+
+      <p id="msgCamera" class="text-center text-xs text-slate-400">Aponte a câmera para o QR Code do crachá do voluntário</p>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="fecharModalCamera()" class="px-4 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 font-medium">Fechar Câmera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NOVO VOLUNTÁRIO -->
+  <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-[#131927] border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-orbitron font-bold text-white text-lg">Cadastrar Voluntário</h3>
+        <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-white font-bold text-xl">✕</button>
+      </div>
+
+      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Nome Completo *</label>
+          <input type="text" id="novoNome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">CPF *</label>
+            <input type="text" id="novoCPF" required placeholder="000.000.000-00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Código QR Code</label>
+            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Área / Palco</label>
+            <input type="text" id="novoArea" placeholder="ex: Palco Principal" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Turno</label>
+            <select id="novoTurno" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#00FF66]">
+              <option value="Manhã">Manhã</option>
+              <option value="Tarde">Tarde</option>
+              <option value="Noite">Noite</option>
+              <option value="Madrugada">Madrugada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-4 py-2 rounded-lg text-xs bg-slate-800 text-slate-300 font-medium">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg text-xs bg-[#00FF66] text-slate-950 font-bold">Salvar Voluntário</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
   <script>
-    // 1. BANCO DE DADOS LOCAL (COM DADOS MOCK INICIAIS DA FOUREVENTS)
-    let voluntarios = JSON.parse(localStorage.getItem('cpbr_voluntarios')) || [
-      { id: "VOL-101", nome: "Lucas Andrade", palco: "Palco Principal", status: "FORA", entrada: "--:--", saida: "--:--", horasTotais: 4.5, metaDiaria: 6 },
-      { id: "VOL-102", nome: "Beatriz Lima", palco: "Palco Gaming", status: "FORA", entrada: "--:--", saida: "--:--", horasTotais: 6.0, metaDiaria: 6 },
-      { id: "VOL-103", nome: "Gabriel Santos", palco: "Área de Credenciamento", status: "FORA", entrada: "--:--", saida: "--:--", horasTotais: 2.0, metaDiaria: 6 },
-      { id: "VOL-104", nome: "Mariana Costa", palco: "Palco AI & Sci-Fi", status: "FORA", entrada: "--:--", saida: "--:--", horasTotais: 0.0, metaDiaria: 6 }
+    const DADOS_EXEMPLO = [
+      { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', cpf: '123.456.789-00', area: 'Palco Principal', turno: 'Manhã', presente: true, entrada: '08:00', Saida: '--:--', horas: 4.5 },
+      { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', cpf: '987.654.321-11', area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '09:15', Saida: '15:30', horas: 6.25 },
+      { id: '3', qrcode: '4e-6140873624', nome: 'Gabriel Santos', cpf: '456.789.123-22', area: 'Arena Gamer', turno: 'Noite', presente: false, entrada: '--:--', Saida: '--:--', horas: 0 },
+      { id: '4', qrcode: '4e-33946c3c47', nome: 'Beatriz Lima', cpf: '321.654.987-33', area: 'Workshops', turno: 'Manhã', presente: true, entrada: '10:00', Saida: '--:--', horas: 2.5 }
     ];
 
-    let html5QrCode = null;
-    let cameraAtualFacingMode = "environment"; // Usa câmera traseira do celular por padrão
+    let voluntarios = JSON.parse(localStorage.getItem('cp_voluntarios')) || DADOS_EXEMPLO;
+    let html5QrcodeScanner = null;
 
-    // 2. INICIALIZAÇÃO DA APLICAÇÃO
-    document.addEventListener("DOMContentLoaded", () => {
-      lucide.createIcons();
-      salvarEAtualizar();
-      iniciarScanner();
-    });
-
-    // 3. GERENCIADOR DO LEITOR DE QR CODE (CÂMERA MOBILE)
-    function iniciarScanner() {
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => carregarCamera()).catch(err => console.log(err));
-      } else {
-        carregarCamera();
-      }
+    function salvarStorage() {
+      localStorage.setItem('cp_voluntarios', JSON.stringify(voluntarios));
     }
 
-    function carregarCamera() {
-      html5QrCode = new Html5Qrcode("qr-reader");
-      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    // RELÓGIO DIGITAL
+    setInterval(() => {
+      const agora = new Date();
+      document.getElementById('relogioDigital').innerText = agora.toLocaleTimeString('pt-BR');
+    }, 1000);
 
-      html5QrCode.start(
-        { facingMode: cameraAtualFacingMode },
-        config,
-        onScanSuccess
-      ).catch(err => {
-        console.error("Erro ao abrir câmera:", err);
-        document.getElementById("qr-reader").innerHTML = `<p class="text-xs text-rose-400 p-4">Permissão de câmera negada ou dispositivo sem câmera compatível.</p>`;
+    // RENDERIZAR TABELA
+    function renderizarTabela() {
+      const corpo = document.getElementById('tabelaCorpo');
+      const filtroTexto = document.getElementById('filtroTexto').value.toLowerCase();
+      const filtroStatus = document.getElementById('filtroStatus').value;
+
+      corpo.innerHTML = '';
+
+      let total = voluntarios.length;
+      let presentes = 0;
+      let concluidos = 0;
+
+      voluntarios.forEach(v => {
+        if (v.presente) presentes++;
+        if (v.horas >= 6) concluidos++;
+
+        const atendeTexto = v.nome.toLowerCase().includes(filtroTexto) || 
+                             v.cpf.includes(filtroTexto) || 
+                             (v.qrcode && v.qrcode.toLowerCase().includes(filtroTexto));
+        const atendeStatus = filtroStatus === 'todos' || 
+                             (filtroStatus === 'presente' && v.presente) || 
+                             (filtroStatus === 'ausente' && !v.presente);
+
+        if (atendeTexto && atendeStatus) {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-900/50 transition";
+
+          tr.innerHTML = `
+            <td class="p-4">
+              <div class="font-medium text-white">${v.nome}</div>
+              <div class="text-xs text-slate-500 font-mono">CPF: ${v.cpf}</div>
+            </td>
+            <td class="p-4">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono bg-slate-900 border border-slate-700 text-cyan-400">
+                ${v.qrcode || 'N/A'}
+              </span>
+            </td>
+            <td class="p-4">
+              <div class="text-xs text-slate-300">${v.area || 'Geral'}</div>
+              <div class="text-[10px] text-slate-500 uppercase">${v.turno || 'Integral'}</div>
+            </td>
+            <td class="p-4">
+              ${v.presente 
+                ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Presente</span>`
+                : `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Ausente</span>`
+              }
+            </td>
+            <td class="p-4 font-mono text-xs text-slate-300">${v.entrada || '--:--'}</td>
+            <td class="p-4 font-mono text-xs text-slate-300">${v.Saida || '--:--'}</td>
+            <td class="p-4">
+              <div class="text-xs font-bold text-white">${v.horas ? v.horas.toFixed(1) : '0.0'} h</div>
+            </td>
+            <td class="p-4 text-right space-x-2">
+              <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${v.presente ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'} transition">
+                ${v.presente ? 'Check-out' : 'Check-in'}
+              </button>
+              <button onclick="excluirVoluntario('${v.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 transition">
+                ✕
+              </button>
+            </td>
+          `;
+          corpo.appendChild(tr);
+        }
+      });
+
+      document.getElementById('metricTotal').innerText = total;
+      document.getElementById('metricPresentes').innerText = presentes;
+      document.getElementById('metricAusentes').innerText = total - presentes;
+      document.getElementById('metricConcluidos').innerText = concluidos;
+    }
+
+    // CHECK-IN / CHECK-OUT RÁPIDO VIA TERMO / QR CODE
+    function processarPontoKiosk(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('inputKiosk');
+      const termo = input.value.trim().toLowerCase();
+      const msg = document.getElementById('msgKiosk');
+
+      if (!termo) return;
+
+      const voluntario = voluntarios.find(v => 
+        (v.qrcode && v.qrcode.toLowerCase() === termo) ||
+        (v.cpf && v.cpf.replace(/\D/g, '') === termo.replace(/\D/g, '')) ||
+        (v.nome && v.nome.toLowerCase() === termo)
+      );
+
+      if (voluntario) {
+        alternarPonto(voluntario.id);
+        msg.className = "text-xs mt-2 font-bold text-emerald-400";
+        msg.innerText = `✓ Ponto registrado para ${voluntario.nome} (${voluntario.presente ? 'Check-in' : 'Check-out'})`;
+        input.value = '';
+      } else {
+        msg.className = "text-xs mt-2 font-bold text-rose-400";
+        msg.innerText = `✗ Nenhum voluntário localizado com o código: "${termo}"`;
+      }
+
+      setTimeout(() => { msg.innerText = ''; }, 4000);
+    }
+
+    function alternarPonto(id) {
+      const v = voluntarios.find(item => item.id === id);
+      if (!v) return;
+
+      const agora = new Date();
+      const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      if (!v.presente) {
+        v.presente = true;
+        v.entrada = horaFormatada;
+        v.Saida = '--:--';
+      } else {
+        v.presente = false;
+        v.Saida = horaFormatada;
+        v.horas = (v.horas || 0) + 4.0;
+      }
+
+      salvarStorage();
+      renderizarTabela();
+    }
+
+    // LEITOR DE CÂMERA AO VIVO
+    function abrirModalCamera() {
+      document.getElementById('modalCamera').classList.remove('hidden');
+      
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      }
+      
+      html5QrcodeScanner.render((qrCodeMessage) => {
+        document.getElementById('inputKiosk').value = qrCodeMessage;
+        processarPontoKiosk();
+        fecharModalCamera();
+      }, (errorMessage) => {
+        // Leitura contínua
       });
     }
 
-    function alternarCamera() {
-      cameraAtualFacingMode = cameraAtualFacingMode === "environment" ? "user" : "environment";
-      iniciarScanner();
+    function fecharModalCamera() {
+      document.getElementById('modalCamera').classList.add('hidden');
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(error => console.error(error));
+      }
     }
 
-    // 4. PROCESSAMENTO DO CHECK-IN / CHECK-OUT AUTOMÁTICO
-    function onScanSuccess(qrCodeMessage) {
+    function excluirVoluntario(id) {
+      if (confirm("Tem certeza que deseja remover este voluntário?")) {
+        voluntarios = voluntarios.filter(v => v.id !== id);
+        salvarStorage();
+        renderizarTabela();
+      }
+    }
+
+    function limparTodosDados() {
+      if (confirm("ATENÇÃO: Isto apagará TODOS os voluntários do sistema. Deseja continuar?")) {
+        voluntarios = [];
+        salvarStorage();
+        renderizarTabela();
+      }
+    }
+
+    // MODAL NOVO VOLUNTÁRIO
+    function abrirModalNovoVoluntario() {
+      document.getElementById('modalNovoVoluntario').classList.remove('hidden');
+    }
+    function fecharModalNovoVoluntario() {
+      document.getElementById('modalNovoVoluntario').classList.add('hidden');
+    }
+
+    function salvarNovoVoluntario(e) {
+      e.preventDefault();
+      const nome = document.getElementById('novoNome').value;
+      const cpf = document.getElementById('novoCPF').value;
+      const qrcode = document.getElementById('novoQRCode').value || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
+      const area = document.getElementById('novoArea').value;
+      const turno = document.getElementById('novoTurno').value;
+
+      voluntarios.push({
+        id: Date.now().toString(),
+        qrcode: qrcode,
+        nome: nome,
+        cpf: cpf,
+        area: area || 'Geral',
+        turno: turno,
+        presente: false,
+        entrada: '--:--',
+        Saida: '--:--',
+        horas: 0
+      });
+
+      salvarStorage();
+      renderizarTabela();
+      fecharModalNovoVoluntario();
+      document.getElementById('formNovoVoluntario').reset();
+    }
+
+    // EXCEL IMPORT/EXPORT
+    function importarExcel(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(firstSheet);
+
+        let novos = 0;
+        json.forEach(row => {
+          const nome = row['Nome'] || row['NOME'] || row['nome'];
+          if (nome) {
+            voluntarios.push({
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              qrcode: row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
+              nome: nome,
+              cpf: row['CPF'] || row['cpf'] || '000.000.000-00',
+              area: row['Área / Palco'] || row['Area'] || row['Área'] || 'Geral',
+              turno: row['Turno'] || 'Manhã',
+              presente: false,
+              entrada: '--:--',
+              Saida: '--:--',
+              horas: 0
+            });
+            novos++;
+          }
+        });
+
+        salvarStorage();
+        renderizarTabela();
+        alert(`${novos} voluntários importados com sucesso!`);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function baixarModeloExcel() {
+      const modelo = [
+        ["Nome", "CPF", "QRCODE", "Área / Palco", "Turno"],
+        ["João Silva", "123.456.789-00", "4e-6123699472", "Palco Principal", "Manhã"],
+        ["Maria Santos", "987.654.321-11", "4e-6135589499", "Credenciamento", "Tarde"]
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(modelo);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Voluntários");
+      XLSX.writeFile(wb, "modelo_voluntarios_campus_party.xlsx");
+    }
+
+    function exportarExcel() {
+      const dados = voluntarios.map(v => ({
+        "Nome": v.nome,
+        "CPF": v.cpf,
+        "QRCODE": v.qrcode || '',
+        "Área": v.area,
+        "Turno": v.turno,
+        "Status": v.presente ? "Presente" : "Ausente",
+        "Entrada": v.entrada,
+        "Saída": v.Saida,
+        "Horas Totais": v.horas
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dados);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Relatório Voluntários");
+      XLSX.writeFile(wb, `relatorio_campus_party_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    window.onload = () => {
+      renderizarTabela();
+    };
+  </script>
+</body>
+</html>
