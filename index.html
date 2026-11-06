@@ -6,6 +6,12 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  
+  <!-- SUPORTE A APP WEB / PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  
   <title>Campus Party Brasil - Controle de Voluntários</title>
 
   <!-- Favicon com o ícone circular CP -->
@@ -43,7 +49,6 @@
     const setupRef = ref(db, 'setup_evento');
     const usuariosRef = ref(db, 'usuarios');
 
-    // Instância secundária para criar contas sem deslogar o coordenador
     const secondaryApp = getApps().length > 1 ? getApp("Secondary") : initializeApp(firebaseConfig, "Secondary");
     const secondaryAuth = getAuth(secondaryApp);
 
@@ -62,7 +67,6 @@
       ]
     };
 
-    // ESCUTA EM TEMPO REAL OS DADOS DOS VOLUNTÁRIOS
     onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -78,7 +82,6 @@
       if (typeof window.renderizarEscalas === 'function') window.renderizarEscalas();
     });
 
-    // ESCUTA EM TEMPO REAL AS CONFIGURAÇÕES DE SETUP
     onValue(setupRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -92,16 +95,12 @@
       if (typeof window.renderizarTabela === 'function') window.renderizarTabela();
     });
 
-    // ESCUTA LISTA DE USUÁRIOS E ROLES
     onValue(usuariosRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        window.listaUsuarios = data;
-      }
+      if (data) window.listaUsuarios = data;
       if (typeof window.renderizarUsuariosSetup === 'function') window.renderizarUsuariosSetup();
     });
 
-    // MONITORAMENTO DE AUTENTICAÇÃO E PERFIS
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const emailSanitizado = user.email.toLowerCase().replace(/[\.\#\$\[\]]/g, '_');
@@ -170,7 +169,6 @@
         });
     };
 
-    // PRIMEIRO ACESSO / REDEFINIÇÃO DE SENHA POR E-MAIL
     window.enviarPrimeiroAcessoEmail = function() {
       const email = document.getElementById('loginUsuario').value.trim();
       const msg = document.getElementById('msgErroLogin');
@@ -186,16 +184,15 @@
         .then(() => {
           msg.classList.remove('hidden');
           msg.className = "text-xs font-bold text-emerald-600 text-center";
-          msg.innerText = "✓ E-mail enviado! Verifique sua caixa de entrada/spam para cadastrar/alterar sua senha.";
+          msg.innerText = "✓ E-mail enviado! Verifique sua caixa de entrada/spam.";
         })
-        .catch((error) => {
+        .catch(() => {
           msg.classList.remove('hidden');
           msg.className = "text-xs font-semibold text-rose-600 text-center";
-          msg.innerText = "⚠️ Erro ao enviar e-mail. Verifique se o e-mail está correto.";
+          msg.innerText = "⚠️ Erro ao enviar e-mail. Verifique o endereço.";
         });
     };
 
-    // CADASTRO DE NOVO OPERADOR COM NOME E CRIAÇÃO DIRETA NO FIREBASE AUTH
     window.adicionarUsuarioOperador = function(e) {
       e.preventDefault();
       const nome = document.getElementById('novoUsuarioNome').value.trim();
@@ -210,9 +207,7 @@
       const tempPass = Math.random().toString(36).slice(-8) + "!Cp2024";
 
       createUserWithEmailAndPassword(secondaryAuth, email, tempPass)
-        .then(() => {
-          return sendPasswordResetEmail(secondaryAuth, email);
-        })
+        .then(() => sendPasswordResetEmail(secondaryAuth, email))
         .then(() => {
           window.salvarUsuarioNuvem(email, role, nome);
           signOut(secondaryAuth);
@@ -220,7 +215,7 @@
           if (btn) { btn.innerText = "+ Salvar"; btn.disabled = false; }
           document.getElementById('novoUsuarioNome').value = '';
           document.getElementById('novoUsuarioEmail').value = '';
-          alert(`✅ Usuário ${nome} (${email}) criado com sucesso!\n\nFoi enviado um e-mail para ele definir a senha de acesso.`);
+          alert(`✅ Usuário ${nome} (${email}) criado com sucesso! E-mail de senha enviado.`);
         })
         .catch((error) => {
           if (btn) { btn.innerText = "+ Salvar"; btn.disabled = false; }
@@ -230,7 +225,7 @@
             sendPasswordResetEmail(auth, email).catch(() => {});
             document.getElementById('novoUsuarioNome').value = '';
             document.getElementById('novoUsuarioEmail').value = '';
-            alert(`✅ Permissão atualizada para ${nome}! Como a conta já existia, enviamos o link de redefinição de senha.`);
+            alert(`✅ Permissão atualizada para ${nome}! Link de senha enviado.`);
           } else {
             alert(`⚠️ Erro ao cadastrar usuário: ${error.message}`);
           }
@@ -241,22 +236,13 @@
       signOut(auth).then(() => { window.exibirTelaLogin(); });
     };
 
-    window.salvarNuvem = function() {
-      set(dbRef, window.voluntarios);
-    };
-
-    window.salvarSetupNuvem = function() {
-      set(setupRef, window.setupEvento);
-    };
-
+    window.salvarNuvem = function() { set(dbRef, window.voluntarios); };
+    window.salvarSetupNuvem = function() { set(setupRef, window.setupEvento); };
     window.salvarUsuarioNuvem = function(email, role, nome) {
       const key = email.toLowerCase().replace(/[\.\#\$\[\]]/g, '_');
       set(ref(db, `usuarios/${key}`), { email, role, nome: nome || email.split('@')[0] });
     };
-
-    window.removerUsuarioNuvem = function(emailKey) {
-      set(ref(db, `usuarios/${emailKey}`), null);
-    };
+    window.removerUsuarioNuvem = function(emailKey) { set(ref(db, `usuarios/${emailKey}`), null); };
   </script>
 
   <style>
@@ -264,7 +250,6 @@
 
     html, body {
       height: 100%;
-      overflow: hidden;
       font-family: 'Inter', sans-serif;
       background-color: #f1f5f9;
       color: #0f172a;
@@ -325,20 +310,29 @@
   </div>
 
   <!-- CONTAINER DA APLICAÇÃO -->
-  <div id="appConteudo" class="hidden h-screen w-screen flex overflow-hidden">
+  <div id="appConteudo" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden relative">
 
-    <!-- BARRA LATERAL FIXA -->
-    <aside class="w-64 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-xl h-screen">
+    <!-- OVERLAY ESCURO PARA CELULAR -->
+    <div id="sidebarOverlay" onclick="alternarSidebarMobile()" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden"></div>
+
+    <!-- BARRA LATERAL (RESPONSIVA: GAVETA NO MOBILE, FIXA NO DESKTOP) -->
+    <aside id="sidebarMenu" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-2xl md:shadow-xl h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
       
       <div class="space-y-6">
-        <div class="flex items-center gap-3 px-1 py-2 border-b border-slate-800">
-          <div class="w-12 h-12 bg-[#0099ff] rounded-2xl flex items-center justify-center p-0.5 shadow-md shrink-0">
-            <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
+        <div class="flex items-center justify-between border-b border-slate-800 px-1 py-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-[#0099ff] rounded-xl flex items-center justify-center p-0.5 shadow-md shrink-0">
+              <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
+            </div>
+            <div class="leading-tight">
+              <h1 class="font-extrabold text-white text-sm tracking-tight">Campus Party</h1>
+              <p class="text-[9px] text-[#0099ff] font-bold uppercase tracking-wider">VOLUNTÁRIOS</p>
+            </div>
           </div>
-          <div class="leading-tight">
-            <h1 class="font-extrabold text-white text-base tracking-tight">Campus Party</h1>
-            <p class="text-[10px] text-[#0099ff] font-bold uppercase tracking-wider">VOLUNTÁRIOS</p>
-          </div>
+          <!-- Botão fechar no mobile -->
+          <button onclick="alternarSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-1">
+            ✕
+          </button>
         </div>
 
         <!-- 4 ABAS DE NAVEGAÇÃO -->
@@ -387,82 +381,80 @@
 
     </aside>
 
-    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
-    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL (RESPONSIVA) -->
+    <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
-      <!-- TOPBAR SUPERIOR -->
-      <header class="bg-white border-b border-slate-200 px-8 py-4 flex flex-wrap justify-between items-center gap-4 shrink-0">
-        <div>
-          <h2 id="tituloPaginaHeader" class="text-2xl font-bold text-slate-900">Dashboard e Presença ao Vivo</h2>
-          <p id="subtituloPaginaHeader" class="text-xs text-slate-500">Controle de presenças, métricas e check-in/out durante o evento</p>
+      <!-- TOPBAR SUPERIOR COM BOTÃO MENU HAMBÚRGUER -->
+      <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
+        <div class="flex items-center gap-3 w-full md:w-auto justify-between">
+          <div class="flex items-center gap-3">
+            <button onclick="alternarSidebarMobile()" class="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-800 p-2 rounded-xl border border-slate-200 font-bold text-lg">
+              ☰
+            </button>
+            <div>
+              <h2 id="tituloPaginaHeader" class="text-lg md:text-2xl font-bold text-slate-900 leading-tight">Dashboard e Presença ao Vivo</h2>
+              <p id="subtituloPaginaHeader" class="text-[11px] md:text-xs text-slate-500 hidden sm:block">Controle de presenças, métricas e check-in/out durante o evento</p>
+            </div>
+          </div>
         </div>
 
-        <div id="containerBotoesTopHeader" class="flex items-center gap-3">
-          <button onclick="baixarModeloExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300">
-            📥 Modelo Excel
+        <div id="containerBotoesTopHeader" class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button onclick="baixarModeloExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">
+            📥 Modelo
           </button>
-          <label class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300 cursor-pointer">
-            📤 Importar Voluntários
+          <label class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 cursor-pointer text-center">
+            📤 Importar
             <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
           </label>
-          <button onclick="exportarExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300">
-            📊 Exportar Relatório
+          <button onclick="exportarExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">
+            📊 Exportar
           </button>
-          <button onclick="abrirModalNovoVoluntario()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20">
+          <button onclick="abrirModalNovoVoluntario()" class="w-full md:w-auto bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 text-center">
             + Novo Voluntário
           </button>
         </div>
       </header>
 
       <!-- ABA 1: LISTA GERAL DE VOLUNTÁRIOS -->
-      <main id="secaoVoluntarios" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <main id="secaoVoluntarios" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p class="text-xs font-semibold text-slate-500 uppercase">Total Selecionados</p>
-              <p id="metricBaseTotal" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
-              <p class="text-xs text-slate-400 mt-1">Cadastrados via formulário/Excel</p>
+              <p id="metricBaseTotal" class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center font-bold text-lg">
-              📋
-            </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0099ff] flex items-center justify-center font-bold">📋</div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p class="text-xs font-semibold text-slate-500 uppercase">Confirmados na Reunião</p>
-              <p id="metricBaseConfirmados" class="text-3xl font-extrabold text-emerald-600 mt-1">0</p>
-              <p class="text-xs text-emerald-600 font-semibold mt-1">Enviados para a Escala</p>
+              <p id="metricBaseConfirmados" class="text-2xl md:text-3xl font-extrabold text-emerald-600 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
-              ✓
-            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">✓</div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p class="text-xs font-semibold text-slate-500 uppercase">Ausentes / Desistentes</p>
-              <p id="metricBaseDesistentes" class="text-3xl font-extrabold text-rose-600 mt-1">0</p>
-              <p class="text-xs text-rose-600 font-semibold mt-1">Não irão para a escala</p>
+              <p id="metricBaseDesistentes" class="text-2xl md:text-3xl font-extrabold text-rose-600 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg">
-              ✕
-            </div>
+            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">✕</div>
           </div>
         </section>
 
-        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Check-in da Reunião Presencial</h3>
-              <p class="text-xs text-slate-500">Marque a caixinha apenas dos voluntários que compareceram. Apenas os marcados sobem para as escalas.</p>
+              <p class="text-xs text-slate-500">Marque apenas os voluntários que compareceram.</p>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
-              <input type="text" id="filtroVoluntariosBase" oninput="renderizarListaVoluntarios()" placeholder="Buscar candidato..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <input type="text" id="filtroVoluntariosBase" oninput="renderizarListaVoluntarios()" placeholder="Buscar candidato..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               
-              <button onclick="exportarRelatorioReuniao()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 flex items-center gap-1.5">
-                📋 Exportar Presença Reunião (.xlsx)
+              <button onclick="exportarRelatorioReuniao()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 flex items-center justify-center gap-1.5">
+                📋 Exportar Reunião (.xlsx)
               </button>
 
               <button onclick="limparTodosDados()" class="text-xs text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl border border-rose-200 transition font-semibold btn-admin-only">
@@ -472,10 +464,10 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                  <th class="p-4 text-center w-36">Confirmar?</th>
+                  <th class="p-4 text-center w-24">Confirmar?</th>
                   <th class="p-4">Voluntário</th>
                   <th class="p-4">E-mail</th>
                   <th class="p-4">QR Code</th>
@@ -490,36 +482,32 @@
       </main>
 
       <!-- ABA 2: ESCALAS & TURNOS -->
-      <main id="secaoEscalas" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
-        <section id="cardsResumoTurnos" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <main id="secaoEscalas" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <section id="cardsResumoTurnos" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <!-- Renderizado via JS -->
         </section>
 
-        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div class="flex items-center gap-3">
                 <h3 class="text-base font-bold text-slate-900">Planejamento da Escala da Equipe</h3>
-                <span class="text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Salvamento automático ativo
-                </span>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Exibindo apenas voluntários confirmados na reunião presencial</p>
+              <p class="text-xs text-slate-500 mt-0.5">Exibindo apenas voluntários confirmados</p>
             </div>
 
-            <div class="flex items-center gap-3">
-              <button onclick="salvarTodasEscalasManual()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-md shadow-emerald-600/20 flex items-center gap-1.5">
-                💾 Salvar Alterações
+            <div class="flex items-center gap-2">
+              <button onclick="salvarTodasEscalasManual()" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-md flex items-center justify-center gap-1.5">
+                💾 Salvar
               </button>
-              <button onclick="exportarEscalaOficial()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20">
-                📋 Exportar Escala (.xlsx)
+              <button onclick="exportarEscalaOficial()" class="flex-1 md:flex-initial bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">
+                📋 Exportar (.xlsx)
               </button>
             </div>
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse min-w-[650px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                   <th class="p-4">Voluntário</th>
@@ -535,80 +523,76 @@
       </main>
 
       <!-- ABA 3: DASHBOARD -->
-      <main id="secaoDashboard" class="p-8 space-y-6 overflow-y-auto flex-1">
-        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <main id="secaoDashboard" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
           
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-semibold text-slate-500 uppercase">Pessoas Selecionadas</p>
-              <p id="metricTotalSelecionados" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
-              <p class="text-xs text-slate-400 mt-1">Total na base inicial</p>
+              <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Selecionados</p>
+              <p id="metricTotalSelecionados" class="text-xl md:text-3xl font-extrabold text-slate-900 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-blue-50 text-[#0099ff] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
             </div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-semibold text-slate-500 uppercase">Setor Definido</p>
-              <p id="metricSetorDefinido" class="text-3xl font-extrabold text-indigo-600 mt-1">0</p>
-              <p class="text-xs text-indigo-600 font-semibold mt-1"><span id="metricSetorPct">0%</span> escalados em palcos</p>
+              <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Setor Definido</p>
+              <p id="metricSetorDefinido" class="text-xl md:text-3xl font-extrabold text-indigo-600 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h10M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h10M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
             </div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-semibold text-slate-500 uppercase">Em Atividade (Presentes)</p>
-              <p id="metricPresentes" class="text-3xl font-extrabold text-emerald-600 mt-1">0</p>
-              <p class="text-xs text-emerald-600 font-semibold mt-1"><span id="metricPorcentagem">0%</span> em campo agora</p>
+              <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Em Atividade</p>
+              <p id="metricPresentes" class="text-xl md:text-3xl font-extrabold text-emerald-600 mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             </div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-semibold text-slate-500 uppercase">Carga Cumprida (<span id="txtMetaHorasTitulo">12</span>h)</p>
-              <p id="metricConcluidos" class="text-3xl font-extrabold text-[#0099ff] mt-1">0</p>
-              <p class="text-xs text-[#0099ff] font-semibold mt-1">✓ Meta de <span id="txtMetaHorasSub">12</span>h atingida</p>
+              <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Meta Horas</p>
+              <p id="metricConcluidos" class="text-xl md:text-3xl font-extrabold text-[#0099ff] mt-1">0</p>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-blue-50 text-[#0099ff] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
           </div>
 
         </section>
 
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Distribuição por Área</h3>
-              <p class="text-xs text-slate-500">Presença por palco e setores do evento</p>
+              <p class="text-xs text-slate-500">Presença por palco e setores</p>
             </div>
-            <div class="relative h-64 w-full pt-2">
+            <div class="relative h-56 md:h-64 w-full pt-2">
               <canvas id="chartPresenca"></canvas>
             </div>
           </div>
 
-          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900 mb-1 flex items-center justify-between">
                 Consulta Rápida
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               </h3>
-              <p class="text-xs text-slate-500 mb-4">Digite E-mail/Nome ou faça a leitura do QR Code.</p>
+              <p class="text-xs text-slate-500 mb-4">Digite E-mail/Nome ou leia o QR Code.</p>
 
               <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="space-y-3">
                 <div>
                   <input type="text" id="inputKiosk" placeholder="E-mail, Nome ou QR Code..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm font-mono">
                 </div>
                 <div class="flex gap-2">
-                  <button type="submit" class="flex-1 bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md shadow-[#0099ff]/20">
+                  <button type="submit" class="flex-1 bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md">
                     REGISTRAR PONTO
                   </button>
                   <button type="button" onclick="abrirModalCamera()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-xl border border-slate-300">
@@ -618,29 +602,25 @@
               </form>
               <p id="msgKiosk" class="text-xs font-bold mt-2 min-h-[16px]"></p>
             </div>
-
-            <div class="border-t border-slate-100 pt-3 text-[11px] text-slate-400 text-center">
-              Manhã (10h-17h) • Tarde (12h-18h) • Noite (15h-22h)
-            </div>
           </div>
         </section>
 
-        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Painel de Presença dos Confirmados</h3>
-              <p class="text-xs text-slate-500">Lista completa com status ao vivo e registro de horas</p>
+              <p class="text-xs text-slate-500">Lista completa com status ao vivo</p>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
-              <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar voluntário..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-60 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               
-              <select id="filtroArea" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-                <option value="todas">Todas as Áreas / Palcos</option>
+              <select id="filtroArea" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todas">Todas as Áreas</option>
               </select>
 
-              <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-                <option value="todos">Todos os Status</option>
+              <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todos">Todos Status</option>
                 <option value="presente">Presentes</option>
                 <option value="ausente">Ausentes</option>
               </select>
@@ -648,7 +628,7 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                   <th class="p-4">Voluntário</th>
@@ -667,30 +647,25 @@
         </section>
       </main>
 
-      <!-- ABA 4: SETUP / CONFIGURAÇÕES (APENAS COORDENADORES) -->
-      <main id="secaoSetup" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- ABA 4: SETUP / CONFIGURAÇÕES -->
+      <main id="secaoSetup" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           
-          <!-- GERENCIAMENTO DE OPERADORES & ACESSOS COM CAMPO NOME -->
-          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Gestão de Acessos</h3>
-              <p class="text-xs text-slate-500">Cadastre o nome, e-mail e função dos operadores</p>
+              <p class="text-xs text-slate-500">Cadastre operadores e coordenadores</p>
             </div>
 
             <form onsubmit="adicionarUsuarioOperador(event)" class="space-y-3">
-              <div>
-                <input type="text" id="novoUsuarioNome" required placeholder="Nome completo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              </div>
-              <div>
-                <input type="email" id="novoUsuarioEmail" required placeholder="operador@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              </div>
+              <input type="text" id="novoUsuarioNome" required placeholder="Nome completo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <input type="email" id="novoUsuarioEmail" required placeholder="operador@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               <div class="flex gap-2">
                 <select id="novoUsuarioRole" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-                  <option value="operador">Operador (Apenas Ponto)</option>
-                  <option value="coordenador">Coordenador (Acesso Master)</option>
+                  <option value="operador">Operador</option>
+                  <option value="coordenador">Coordenador</option>
                 </select>
-                <button type="submit" id="btnSalvarUsuarioSetup" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+                <button type="submit" id="btnSalvarUsuarioSetup" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
                   + Salvar
                 </button>
               </div>
@@ -699,34 +674,29 @@
             <ul id="listaUsuariosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
 
-          <!-- PAINEL DE CONFIGURAÇÃO DA CARGA HORÁRIA DO EVENTO -->
-          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
-              <h3 class="text-base font-bold text-slate-900">Carga Horária do Evento</h3>
-              <p class="text-xs text-slate-500">Defina a meta total de horas para o voluntário ter a carga cumprida</p>
+              <h3 class="text-base font-bold text-slate-900">Carga Horária</h3>
+              <p class="text-xs text-slate-500">Defina a meta de horas do voluntário</p>
             </div>
 
             <form onsubmit="salvarMetaHorasSetup(event)" class="space-y-3">
-              <div>
-                <label class="text-xs font-semibold text-slate-700 block mb-1">Meta de Horas Total (h)</label>
-                <input type="number" id="inputMetaHorasSetup" min="1" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] font-bold">
-              </div>
-              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
-                💾 Salvar Meta de Horas
+              <input type="number" id="inputMetaHorasSetup" min="1" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition">
+                💾 Salvar Meta
               </button>
             </form>
           </section>
 
-          <!-- CONFIGURAÇÃO DE PALCOS / ÁREAS -->
-          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Palcos e Áreas</h3>
-              <p class="text-xs text-slate-500">Cadastre os palcos disponíveis nesta edição</p>
+              <p class="text-xs text-slate-500">Cadastre os palcos disponíveis</p>
             </div>
 
             <form onsubmit="adicionarPalcoSetup(event)" class="flex gap-2">
-              <input type="text" id="novoPalcoSetup" required placeholder="Nome do novo palco" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+              <input type="text" id="novoPalcoSetup" required placeholder="Novo palco" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
                 + Adicionar
               </button>
             </form>
@@ -734,20 +704,19 @@
             <ul id="listaPalcosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
 
-          <!-- CONFIGURAÇÃO DE TURNOS E HORÁRIOS -->
-          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Turnos de Trabalho</h3>
-              <p class="text-xs text-slate-500">Configure os horários dos turnos do evento</p>
+              <p class="text-xs text-slate-500">Configure os horários dos turnos</p>
             </div>
 
             <form onsubmit="adicionarTurnoSetup(event)" class="space-y-3">
               <div class="grid grid-cols-3 gap-2">
-                <input type="text" id="novoTurnoNome" required placeholder="Nome" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-                <input type="time" id="novoTurnoInicio" required class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-                <input type="time" id="novoTurnoFim" required class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <input type="text" id="novoTurnoNome" required placeholder="Nome" class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
+                <input type="time" id="novoTurnoInicio" required class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
+                <input type="time" id="novoTurnoFim" required class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
               </div>
-              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition">
                 + Adicionar Turno
               </button>
             </form>
@@ -805,7 +774,7 @@
         <div class="pt-2">
           <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
             <input type="checkbox" id="novoConfirmado" class="w-4 h-4 text-[#0099ff] rounded focus:ring-blue-500">
-            Confirmado na Reunião Presencial (já vai direto para escala)
+            Confirmado na Reunião Presencial (vai direto para escala)
           </label>
         </div>
 
@@ -821,7 +790,21 @@
     let html5QrcodeScanner = null;
     let chartInstance = null;
 
-    // CONTROLE DE NÍVEIS DE ACESSO NA INTERFACE (OCULTA BOTÕES DO OPERADOR)
+    // CONTROLE DE ABRIR/FECHAR MENU LATERAL NO CELULAR
+    window.alternarSidebarMobile = function() {
+      const sidebar = document.getElementById('sidebarMenu');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      if (sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    };
+
+    // CONTROLE DE NÍVEIS DE ACESSO NA INTERFACE
     window.aplicarPermissoesInterface = function() {
       const eCoordenador = (window.usuarioLogadoRole === 'coordenador');
 
@@ -831,7 +814,6 @@
       const containerBotoesHeader = document.getElementById('containerBotoesTopHeader');
 
       if (!eCoordenador) {
-        // Se for operador, OCULTA completamente do DOM/Display as abas restritas
         if (navVoluntarios) navVoluntarios.style.display = 'none';
         if (navEscalas) navEscalas.style.display = 'none';
         if (navSetup) navSetup.style.display = 'none';
@@ -846,7 +828,6 @@
       }
     };
 
-    // GERENCIAMENTO DE OPERADORES COM EXIBIÇÃO DE NOME
     window.renderizarUsuariosSetup = function() {
       const listaUl = document.getElementById('listaUsuariosSetup');
       if (!listaUl) return;
@@ -872,8 +853,16 @@
       });
     };
 
-    // NAVEGAÇÃO DE ABAS
+    // NAVEGAÇÃO DE ABAS COM FECHAMENTO AUTOMÁTICO DO MENU NO MOBILE
     window.navegarPara = function(aba) {
+      const sidebar = document.getElementById('sidebarMenu');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      if (window.innerWidth < 768) {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      }
+
       const secVoluntarios = document.getElementById('secaoVoluntarios');
       const secEscalas = document.getElementById('secaoEscalas');
       const secDashboard = document.getElementById('secaoDashboard');
@@ -885,7 +874,6 @@
       const navSetup = document.getElementById('navSetup');
 
       const tituloHeader = document.getElementById('tituloPaginaHeader');
-      const subtituloHeader = document.getElementById('subtituloPaginaHeader');
 
       const estiloAtivo = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#0099ff] text-white font-semibold text-sm shadow-md shadow-[#0099ff]/30 transition";
       const estiloInativo = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm";
@@ -903,26 +891,22 @@
       if (aba === 'voluntarios' && window.usuarioLogadoRole === 'coordenador') {
         secVoluntarios.classList.remove('hidden');
         if (navVoluntarios) navVoluntarios.className = estiloAtivo;
-        tituloHeader.innerText = "Cadastro & Confirmação de Voluntários";
-        subtituloHeader.innerText = "Importe a lista inicial e confirme quem compareceu à reunião presencial";
+        tituloHeader.innerText = "Voluntários (Base)";
         renderizarListaVoluntarios();
       } else if (aba === 'escalas' && window.usuarioLogadoRole === 'coordenador') {
         secEscalas.classList.remove('hidden');
         if (navEscalas) navEscalas.className = estiloAtivo;
-        tituloHeader.innerText = "Escalas & Turnos da Equipe";
-        subtituloHeader.innerText = "Defina os palcos e horários apenas dos voluntários confirmados";
+        tituloHeader.innerText = "Escalas & Turnos";
         renderizarEscalas();
       } else if (aba === 'dashboard') {
         secDashboard.classList.remove('hidden');
         if (navDashboard) navDashboard.className = estiloAtivo;
         tituloHeader.innerText = "Dashboard e Presença ao Vivo";
-        subtituloHeader.innerText = "Controle de presenças, métricas e check-in/out durante o evento";
         renderizarTabela();
       } else if (aba === 'setup' && window.usuarioLogadoRole === 'coordenador') {
         secSetup.classList.remove('hidden');
         if (navSetup) navSetup.className = estiloAtivo;
-        tituloHeader.innerText = "Setup / Configurações do Evento";
-        subtituloHeader.innerText = "Gerencie os acessos de operadores, meta de horas, palcos e turnos";
+        tituloHeader.innerText = "Setup / Configurações";
         renderizarSetup();
       }
     };
@@ -990,7 +974,6 @@
       }
     }
 
-    // RENDERIZAR ABA BASE DE VOLUNTÁRIOS
     window.renderizarListaVoluntarios = function() {
       const corpo = document.getElementById('tabelaCorpoVoluntariosBase');
       if (!corpo) return;
@@ -1028,8 +1011,8 @@
             </td>
             <td class="p-4">
               ${v.confirmado 
-                ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Confirmado (Na Escala)</span>`
-                : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">Pendente / Desistente</span>`
+                ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Confirmado</span>`
+                : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">Pendente</span>`
               }
             </td>
             ${eCoordenador ? `
@@ -1057,14 +1040,14 @@
         "Nome do Voluntário": v.nome,
         "E-mail": v.email || 'Não informado',
         "QR Code": v.qrcode || 'N/A',
-        "Compareceu à Reunião?": v.confirmado ? "SIM (CONFIRMADO)" : "NÃO (AUSENTE/DESISTENTE)",
-        "Status para Escala": v.confirmado ? "Liberado para Escala" : "Não Liberado"
+        "Compareceu à Reunião?": v.confirmado ? "SIM" : "NÃO",
+        "Status para Escala": v.confirmado ? "Liberado" : "Não Liberado"
       }));
 
       const ws = XLSX.utils.json_to_sheet(dados);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Presença na Reunião");
-      XLSX.writeFile(wb, `relatorio_presenca_reuniao_voluntarios.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, "Presença Reunião");
+      XLSX.writeFile(wb, `presenca_reuniao.xlsx`);
     };
 
     window.alternarConfirmacaoVoluntario = function(id) {
@@ -1075,7 +1058,6 @@
       window.salvarNuvem();
     };
 
-    // RENDERIZAR ABA SETUP
     window.renderizarSetup = function() {
       const listaPalcos = document.getElementById('listaPalcosSetup');
       const listaTurnos = document.getElementById('listaTurnosSetup');
@@ -1124,7 +1106,7 @@
       if (val > 0) {
         window.setupEvento.metaHoras = val;
         window.salvarSetupNuvem();
-        alert(`Meta de Carga Horária atualizada para ${val}h com sucesso!`);
+        alert(`Meta de Carga Horária atualizada para ${val}h!`);
       }
     };
 
@@ -1140,7 +1122,7 @@
     };
 
     window.removerPalcoSetup = function(index) {
-      if (confirm("Remover este palco do setup?")) {
+      if (confirm("Remover este palco?")) {
         window.setupEvento.palcos.splice(index, 1);
         window.salvarSetupNuvem();
       }
@@ -1162,13 +1144,12 @@
     };
 
     window.removerTurnoSetup = function(index) {
-      if (confirm("Remover este turno do setup?")) {
+      if (confirm("Remover este turno?")) {
         window.setupEvento.turnos.splice(index, 1);
         window.salvarSetupNuvem();
       }
     };
 
-    // RENDERIZAR ABA ESCALAS
     window.renderizarEscalas = function() {
       const corpoEscalas = document.getElementById('tabelaCorpoEscalas');
       const containerResumo = document.getElementById('cardsResumoTurnos');
@@ -1190,10 +1171,10 @@
 
       turnosSetup.forEach(t => {
         const div = document.createElement('div');
-        div.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm";
+        div.className = "bg-white p-4 rounded-2xl border border-slate-200 shadow-sm";
         div.innerHTML = `
-          <p class="text-xs font-semibold text-slate-500 uppercase">Turno ${t.nome} (${t.inicio}-${t.fim})</p>
-          <p class="text-2xl font-extrabold text-[#0099ff] mt-1">${contagemTurnos[t.id] || 0} voluntários</p>
+          <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">${t.nome} (${t.inicio}-${t.fim})</p>
+          <p class="text-xl md:text-2xl font-extrabold text-[#0099ff] mt-1">${contagemTurnos[t.id] || 0} p.</p>
         `;
         containerResumo.appendChild(div);
       });
@@ -1202,7 +1183,7 @@
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50/80 transition";
 
-        let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco/Área...</option>` +
+        let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco...</option>` +
           palcosSetup.map(p => `<option value="${p}" ${v.area === p ? 'selected' : ''}>${p}</option>`).join('');
 
         let turnosOptionsHtml = `<option value="" ${!v.turno ? 'selected' : ''}>Selecionar Turno...</option>` +
@@ -1212,12 +1193,12 @@
           <td class="p-4 font-bold text-slate-900">${v.nome}</td>
           <td class="p-4 text-xs font-mono text-slate-500">${v.email || '--'}</td>
           <td class="p-4">
-            <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-56 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+            <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               ${palcosOptionsHtml}
             </select>
           </td>
           <td class="p-4">
-            <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-56 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+            <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               ${turnosOptionsHtml}
             </select>
           </td>
@@ -1241,7 +1222,7 @@
 
     window.salvarTodasEscalasManual = function() {
       window.salvarNuvem();
-      alert("Todas as escalas foram sincronizadas e salvas com sucesso!");
+      alert("Todas as escalas foram sincronizadas!");
     };
 
     window.exportarEscalaOficial = function() {
@@ -1250,22 +1231,20 @@
 
       const dadosEscala = confirmados.map(v => {
         const tObj = turnosSetup.find(t => t.id === v.turno);
-        const horarioStr = tObj ? `${tObj.inicio} - ${tObj.fim}` : '--';
-
         return {
-          "Nome do Voluntário": v.nome,
+          "Nome": v.nome,
           "E-mail": v.email || '',
-          "Código QR": v.qrcode || '',
-          "Área / Palco Designado": v.area || 'Não Definido',
+          "QR Code": v.qrcode || '',
+          "Área / Palco": v.area || 'Não Definido',
           "Turno": v.turno || 'Pendente',
-          "Horário de Trabalho": horarioStr
+          "Horário": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--'
         };
       });
 
       const ws = XLSX.utils.json_to_sheet(dadosEscala);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Escala de Trabalho");
-      XLSX.writeFile(wb, `escala_oficial_voluntarios_campus_party.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, "Escala");
+      XLSX.writeFile(wb, `escala_oficial.xlsx`);
     };
 
     function atualizarGraficoAreas(voluntarios) {
@@ -1299,16 +1278,15 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 12 } } } },
+          plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 11 } } } },
           scales: {
-            x: { ticks: { color: '#64748b', font: { family: 'Inter' } }, grid: { display: false } },
+            x: { ticks: { color: '#64748b', font: { family: 'Inter', size: 10 } }, grid: { display: false } },
             y: { ticks: { color: '#64748b', precision: 0, font: { family: 'Inter' } }, grid: { color: '#f1f5f9' }, beginAtZero: true }
           }
         }
       });
     }
 
-    // RENDERIZAR ABA DASHBOARD COM TRAVAS DE SEGURANÇA
     window.renderizarTabela = function() {
       const corpo = document.getElementById('tabelaCorpo');
       const selectAreaFilter = document.getElementById('filtroArea');
@@ -1321,7 +1299,7 @@
 
       if (selectAreaFilter) {
         const palcos = window.setupEvento.palcos || [];
-        let htmlOptions = `<option value="todas" ${filtroAreaVal === 'todas' ? 'selected' : ''}>Todas as Áreas / Palcos</option>`;
+        let htmlOptions = `<option value="todas" ${filtroAreaVal === 'todas' ? 'selected' : ''}>Todas Áreas</option>`;
         htmlOptions += `<option value="Não Definido" ${filtroAreaVal === 'Não Definido' ? 'selected' : ''}>Não Definido</option>`;
         palcos.forEach(p => {
           htmlOptions += `<option value="${p}" ${filtroAreaVal === p ? 'selected' : ''}>${p}</option>`;
@@ -1373,7 +1351,7 @@
             <td class="p-4">
               <div class="font-bold text-slate-900 flex items-center gap-2">
                 ${v.nome}
-                ${alertaExcesso6h ? `<span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold">⚠️ +6h Ativo</span>` : ''}
+                ${alertaExcesso6h ? `<span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded-full font-bold">⚠️ +6h</span>` : ''}
               </div>
               <div class="text-xs text-slate-400 font-mono">${v.email || 'Sem e-mail'}</div>
             </td>
@@ -1383,9 +1361,9 @@
               </span>
             </td>
             <td class="p-4">
-              <div class="text-xs text-slate-700 flex items-center gap-1.5 font-medium">
+              <div class="text-xs text-slate-700 font-medium">
                 ${v.area || 'Não Definido'}
-                ${alertaTurnoIncorreto ? `<span class="text-[9px] bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold">Turno Incorreto</span>` : ''}
+                ${alertaTurnoIncorreto ? `<span class="text-[9px] bg-rose-100 text-rose-700 px-1 py-0.5 rounded font-bold block w-max mt-0.5">Turno Incorreto</span>` : ''}
               </div>
               <div class="text-[10px] text-slate-400 uppercase font-semibold">${v.turno || 'Pendente'}</div>
             </td>
@@ -1400,11 +1378,7 @@
             </td>
             <td class="p-4 font-mono text-xs text-slate-600">${v.entrada || '--:--'}</td>
             <td class="p-4 font-mono text-xs text-slate-600">${v.Saida || '--:--'}</td>
-            <td class="p-4">
-              <div class="text-xs font-bold text-slate-900">
-                ${formatarMinutosParaHorasMin(minutosTotais)}
-              </div>
-            </td>
+            <td class="p-4 font-bold text-xs text-slate-900">${formatarMinutosParaHorasMin(minutosTotais)}</td>
             <td class="p-4 text-right space-x-2">
               <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${v.presente ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' : 'bg-[#0099ff] text-white hover:bg-blue-600'} transition shadow-sm">
                 ${v.presente ? 'Check-out' : 'Check-in'}
@@ -1420,18 +1394,10 @@
         }
       });
 
-      const pctPresentes = listaConfirmados.length > 0 ? Math.round((presentes / listaConfirmados.length) * 100) : 0;
-      const pctSetor = listaConfirmados.length > 0 ? Math.round((totalSetorDefinido / listaConfirmados.length) * 100) : 0;
-
       document.getElementById('metricTotalSelecionados').innerText = totalSelecionados;
       document.getElementById('metricSetorDefinido').innerText = totalSetorDefinido;
-      document.getElementById('metricSetorPct').innerText = `${pctSetor}%`;
       document.getElementById('metricPresentes').innerText = presentes;
-      document.getElementById('metricPorcentagem').innerText = `${pctPresentes}%`;
       document.getElementById('metricConcluidos').innerText = concluidosMeta;
-
-      document.getElementById('txtMetaHorasTitulo').innerText = metaHorasConfigurada;
-      document.getElementById('txtMetaHorasSub').innerText = metaHorasConfigurada;
 
       atualizarGraficoAreas(listaConfirmados);
     };
@@ -1486,7 +1452,7 @@
 
     function excluirVoluntario(id) {
       if (window.usuarioLogadoRole !== 'coordenador') return;
-      if (confirm("Tem certeza que deseja remover este voluntário?")) {
+      if (confirm("Deseja remover este voluntário?")) {
         window.voluntarios = window.voluntarios.filter(v => v.id !== id);
         window.salvarNuvem();
       }
@@ -1494,7 +1460,7 @@
 
     function limparTodosDados() {
       if (window.usuarioLogadoRole !== 'coordenador') return;
-      if (confirm("ATENÇÃO: Apagar TODOS os voluntários da nuvem?")) {
+      if (confirm("ATENÇÃO: Apagar TODOS os voluntários?")) {
         window.voluntarios = [];
         window.salvarNuvem();
       }
@@ -1521,13 +1487,6 @@
 
     function abrirModalNovoVoluntario() {
       if (window.usuarioLogadoRole !== 'coordenador') return;
-
-      const areaSel = document.getElementById('novoAreaSelect');
-      const turnoSel = document.getElementById('novoTurnoSelect');
-
-      if (areaSel) areaSel.innerHTML = `<option value="">Selecionar Palco/Área...</option>` + (window.setupEvento.palcos || []).map(p => `<option value="${p}">${p}</option>`).join('');
-      if (turnoSel) turnoSel.innerHTML = `<option value="">Selecionar Turno...</option>` + (window.setupEvento.turnos || []).map(t => `<option value="${t.id}">${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
-
       document.getElementById('modalNovoVoluntario').classList.remove('hidden');
     }
 
@@ -1598,7 +1557,7 @@
         });
 
         window.salvarNuvem();
-        alert(`${novos} voluntários importados para a base! Marque o check de presença na reunião para ativá-los.`);
+        alert(`${novos} voluntários importados!`);
       };
       reader.readAsArrayBuffer(file);
     }
@@ -1613,7 +1572,7 @@
       const ws = XLSX.utils.aoa_to_sheet(modelo);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Voluntários");
-      XLSX.writeFile(wb, "modelo_voluntarios_campus_party.xlsx");
+      XLSX.writeFile(wb, "modelo_voluntarios.xlsx");
     }
 
     function exportarExcel() {
@@ -1631,7 +1590,7 @@
           "Área": v.area || 'Não Definido',
           "Turno": v.turno || 'Pendente',
           "Horário Previsto": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--',
-          "Status no Evento": v.presente ? "Presente" : "Ausente",
+          "Status": v.presente ? "Presente" : "Ausente",
           "Entrada": v.entrada,
           "Saída": v.Saida,
           "Tempo Total": formatarMinutosParaHorasMin(totalMin)
@@ -1640,8 +1599,8 @@
 
       const ws = XLSX.utils.json_to_sheet(dados);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Relatório Voluntários");
-      XLSX.writeFile(wb, `relatorio_campus_party_${new Date().toISOString().slice(0,10)}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+      XLSX.writeFile(wb, `relatorio_voluntarios.xlsx`);
     }
 
     window.baixarModeloExcel = baixarModeloExcel;
