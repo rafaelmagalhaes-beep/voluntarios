@@ -22,9 +22,9 @@
 
   <!-- Firebase App, Realtime Database e Firebase Auth SDKs (v10) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDgL2rC5UqL1Hrdy2Rq26E0-fEbsS_OSqU",
@@ -40,8 +40,27 @@
     const db = getDatabase(app);
     const auth = getAuth(app);
     const dbRef = ref(db, 'voluntarios');
+    const setupRef = ref(db, 'setup_evento');
+    const usuariosRef = ref(db, 'usuarios');
+
+    // Instância secundária para criar contas sem deslogar o coordenador
+    const secondaryApp = getApps().length > 1 ? getApp("Secondary") : initializeApp(firebaseConfig, "Secondary");
+    const secondaryAuth = getAuth(secondaryApp);
 
     window.voluntarios = [];
+    window.listaUsuarios = {};
+    window.usuarioLogadoRole = 'coordenador';
+
+    window.setupEvento = {
+      metaHoras: 12,
+      palcos: ['Palco Principal', 'Credenciamento', 'Arena Gamer', 'What\'s Next', 'Startups & Business', 'WSSupernova', 'Disrupção'],
+      turnos: [
+        { id: 'Manhã', nome: 'Manhã', inicio: '10:00', fim: '17:00' },
+        { id: 'Tarde', nome: 'Tarde', inicio: '12:00', fim: '18:00' },
+        { id: 'Noite', nome: 'Noite', inicio: '15:00', fim: '22:00' },
+        { id: 'Madrugada', nome: 'Madrugada', inicio: '22:00', fim: '06:00' }
+      ]
+    };
 
     // ESCUTA EM TEMPO REAL OS DADOS DOS VOLUNTÁRIOS
     onValue(dbRef, (snapshot) => {
@@ -50,29 +69,83 @@
         window.voluntarios = Array.isArray(data) ? data : Object.values(data);
       } else {
         window.voluntarios = [
-          { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', cpf: '123.456.789-00', area: 'Palco Principal', turno: 'Manhã', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 270 },
-          { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', cpf: '987.654.321-11', area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 375 }
+          { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', email: 'lucas.silva@email.com', confirmado: true, area: 'Palco Principal', turno: 'Manhã', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 720 },
+          { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', email: 'mariana.costa@email.com', confirmado: true, area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 375 }
         ];
       }
-      if (typeof window.renderizarTabela === 'function') {
-        window.renderizarTabela();
-      }
+      if (typeof window.renderizarListaVoluntarios === 'function') window.renderizarListaVoluntarios();
+      if (typeof window.renderizarTabela === 'function') window.renderizarTabela();
+      if (typeof window.renderizarEscalas === 'function') window.renderizarEscalas();
     });
 
-    // SISTEMA DE MONITORAMENTO DE AUTENTICAÇÃO EM TEMPO REAL
+    // ESCUTA EM TEMPO REAL AS CONFIGURAÇÕES DE SETUP
+    onValue(setupRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        window.setupEvento = data;
+        if (!window.setupEvento.metaHoras) window.setupEvento.metaHoras = 12;
+        if (!window.setupEvento.palcos) window.setupEvento.palcos = [];
+        if (!window.setupEvento.turnos) window.setupEvento.turnos = [];
+      }
+      if (typeof window.renderizarSetup === 'function') window.renderizarSetup();
+      if (typeof window.renderizarEscalas === 'function') window.renderizarEscalas();
+      if (typeof window.renderizarTabela === 'function') window.renderizarTabela();
+    });
+
+    // ESCUTA LISTA DE USUÁRIOS E ROLES
+    onValue(usuariosRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        window.listaUsuarios = data;
+      }
+      if (typeof window.renderizarUsuariosSetup === 'function') window.renderizarUsuariosSetup();
+    });
+
+    // MONITORAMENTO DE AUTENTICAÇÃO E PERFIS
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Usuário autenticado com sucesso via Firebase
-        const userEmailEl = document.getElementById('userEmailConectado');
-        if (userEmailEl) userEmailEl.innerText = user.email;
-        window.exibirPlataforma();
+        const emailSanitizado = user.email.toLowerCase().replace(/[\.\#\$\[\]]/g, '_');
+        
+        get(child(ref(db), `usuarios/${emailSanitizado}`)).then((snapshot) => {
+          let nomeExibicao = user.displayName || user.email.split('@')[0];
+
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            window.usuarioLogadoRole = userData.role || 'operador';
+            if (userData.nome) nomeExibicao = userData.nome;
+          } else {
+            window.usuarioLogadoRole = 'coordenador';
+            set(ref(db, `usuarios/${emailSanitizado}`), {
+              email: user.email,
+              nome: nomeExibicao,
+              role: 'coordenador'
+            });
+          }
+
+          const userEmailEl = document.getElementById('sidebarUserEmail');
+          const userInitialEl = document.getElementById('sidebarUserInitial');
+          const userNameEl = document.getElementById('sidebarUserName');
+          const badgeRole = document.getElementById('sidebarUserBadge');
+          
+          if (userEmailEl) userEmailEl.innerText = user.email;
+          if (userNameEl) userNameEl.innerText = nomeExibicao;
+          if (userInitialEl) userInitialEl.innerText = (nomeExibicao[0] || 'U').toUpperCase();
+          if (badgeRole) {
+            badgeRole.innerText = window.usuarioLogadoRole === 'coordenador' ? 'Coordenador' : 'Operador Ponto';
+            badgeRole.className = window.usuarioLogadoRole === 'coordenador' 
+              ? "bg-[#FEDD00] text-slate-950 font-extrabold px-2 py-0.5 rounded text-[10px]"
+              : "bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded text-[10px]";
+          }
+
+          window.aplicarPermissoesInterface();
+          window.exibirPlataforma();
+        });
+
       } else {
-        // Sem sessão ativa
         window.exibirTelaLogin();
       }
     });
 
-    // EFETUAR LOGIN VIA FIREBASE AUTH
     window.efetuarLogin = function(e) {
       e.preventDefault();
       const email = document.getElementById('loginUsuario').value.trim();
@@ -93,65 +166,114 @@
           btn.innerText = "ENTRAR NA PLATAFORMA";
           btn.disabled = false;
           msg.classList.remove('hidden');
-          
-          if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-            msg.innerText = "⚠️ E-mail ou senha incorretos!";
-          } else if (error.code === 'auth/invalid-email') {
-            msg.innerText = "⚠️ Formato de e-mail inválido!";
+          msg.innerText = "⚠️ E-mail ou senha incorretos!";
+        });
+    };
+
+    // PRIMEIRO ACESSO / REDEFINIÇÃO DE SENHA POR E-MAIL
+    window.enviarPrimeiroAcessoEmail = function() {
+      const email = document.getElementById('loginUsuario').value.trim();
+      const msg = document.getElementById('msgErroLogin');
+
+      if (!email) {
+        msg.classList.remove('hidden');
+        msg.className = "text-xs font-semibold text-amber-600 text-center";
+        msg.innerText = "⚠️ Digite seu e-mail no campo acima primeiro!";
+        return;
+      }
+
+      sendPasswordResetEmail(auth, email)
+        .then(() => {
+          msg.classList.remove('hidden');
+          msg.className = "text-xs font-bold text-emerald-600 text-center";
+          msg.innerText = "✓ E-mail enviado! Verifique sua caixa de entrada/spam para cadastrar/alterar sua senha.";
+        })
+        .catch((error) => {
+          msg.classList.remove('hidden');
+          msg.className = "text-xs font-semibold text-rose-600 text-center";
+          msg.innerText = "⚠️ Erro ao enviar e-mail. Verifique se o e-mail está correto.";
+        });
+    };
+
+    // CADASTRO DE NOVO OPERADOR COM NOME E CRIAÇÃO DIRETA NO FIREBASE AUTH
+    window.adicionarUsuarioOperador = function(e) {
+      e.preventDefault();
+      const nome = document.getElementById('novoUsuarioNome').value.trim();
+      const email = document.getElementById('novoUsuarioEmail').value.trim();
+      const role = document.getElementById('novoUsuarioRole').value;
+      const btn = document.getElementById('btnSalvarUsuarioSetup');
+
+      if (!email || !nome) return;
+
+      if (btn) { btn.innerText = "CRIANDO..."; btn.disabled = true; }
+
+      const tempPass = Math.random().toString(36).slice(-8) + "!Cp2024";
+
+      createUserWithEmailAndPassword(secondaryAuth, email, tempPass)
+        .then(() => {
+          return sendPasswordResetEmail(secondaryAuth, email);
+        })
+        .then(() => {
+          window.salvarUsuarioNuvem(email, role, nome);
+          signOut(secondaryAuth);
+
+          if (btn) { btn.innerText = "+ Salvar"; btn.disabled = false; }
+          document.getElementById('novoUsuarioNome').value = '';
+          document.getElementById('novoUsuarioEmail').value = '';
+          alert(`✅ Usuário ${nome} (${email}) criado com sucesso!\n\nFoi enviado um e-mail para ele definir a senha de acesso.`);
+        })
+        .catch((error) => {
+          if (btn) { btn.innerText = "+ Salvar"; btn.disabled = false; }
+
+          if (error.code === 'auth/email-already-in-use') {
+            window.salvarUsuarioNuvem(email, role, nome);
+            sendPasswordResetEmail(auth, email).catch(() => {});
+            document.getElementById('novoUsuarioNome').value = '';
+            document.getElementById('novoUsuarioEmail').value = '';
+            alert(`✅ Permissão atualizada para ${nome}! Como a conta já existia, enviamos o link de redefinição de senha.`);
           } else {
-            msg.innerText = "⚠️ Erro ao conectar. Verifique seus dados.";
+            alert(`⚠️ Erro ao cadastrar usuário: ${error.message}`);
           }
         });
     };
 
-    // LOGOUT VIA FIREBASE
     window.efetuarLogout = function() {
-      signOut(auth).then(() => {
-        window.exibirTelaLogin();
-      });
+      signOut(auth).then(() => { window.exibirTelaLogin(); });
     };
 
     window.salvarNuvem = function() {
       set(dbRef, window.voluntarios);
-    }
+    };
+
+    window.salvarSetupNuvem = function() {
+      set(setupRef, window.setupEvento);
+    };
+
+    window.salvarUsuarioNuvem = function(email, role, nome) {
+      const key = email.toLowerCase().replace(/[\.\#\$\[\]]/g, '_');
+      set(ref(db, `usuarios/${key}`), { email, role, nome: nome || email.split('@')[0] });
+    };
+
+    window.removerUsuarioNuvem = function(emailKey) {
+      set(ref(db, `usuarios/${emailKey}`), null);
+    };
   </script>
 
   <style>
-    /* Fontes Oficiais do Brand Guidelines */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Lato:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    :root {
-      --cp-yellow: #FEDD00;
-      --cp-blue: #2c5697;
-      --cp-blue-light: #0099ff;
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
     }
-
-    body {
-      background-color: #0099ff;
-      background-image: url('Design sem nome (2).png');
-      background-repeat: no-repeat;
-      background-position: center top;
-      background-attachment: fixed;
-      background-size: cover;
-      color: #F8FAFC;
-      font-family: 'Lato', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    @media (max-width: 768px) {
-      body {
-        background-size: cover;
-        background-attachment: scroll;
-      }
-    }
-
-    .font-montserrat { font-family: 'Montserrat', sans-serif; }
-    .font-lato { font-family: 'Lato', sans-serif; }
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #2c5697; }
-    ::-webkit-scrollbar-thumb { background: #1b3967; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #FEDD00; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
     #reader video {
       border-radius: 12px;
@@ -159,370 +281,537 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased">
+<body class="h-screen w-screen flex antialiased bg-slate-100 overflow-hidden">
 
   <!-- TELA DE LOGIN -->
-  <div id="telaLogin" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0099ff]/90 backdrop-blur-md">
-    <div class="bg-[#2c5697]/95 border border-[#FEDD00] max-w-md w-full rounded-2xl p-8 shadow-2xl space-y-6">
-      
-      <!-- Cabeçalho do Login -->
+  <div id="telaLogin" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+    <div class="bg-white border border-slate-200 max-w-md w-full rounded-2xl p-8 shadow-2xl space-y-6">
       <div class="text-center space-y-3">
-        <div class="w-16 h-16 rounded-full bg-[#2c5697] border border-white/20 mx-auto flex items-center justify-center text-white font-black text-2xl font-montserrat shadow-xl">
-          CP
+        <div class="w-16 h-16 bg-[#0099ff] rounded-2xl mx-auto flex items-center justify-center p-1 shadow-lg shadow-[#0099ff]/30">
+          <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
         </div>
         <div>
-          <h2 class="font-montserrat font-extrabold text-xl text-white tracking-wide uppercase">Campus Party Brasil</h2>
-          <p class="text-xs text-[#FEDD00] font-montserrat font-semibold tracking-wider uppercase mt-1">Plataforma de Gestão de Voluntários</p>
+          <h2 class="font-extrabold text-2xl text-slate-900 tracking-tight">Campus Party</h2>
+          <p class="text-xs text-[#0099ff] font-semibold uppercase tracking-wider mt-1">Gestão de Voluntários</p>
         </div>
       </div>
 
-      <!-- Formulário de Autenticação -->
-      <form id="formLogin" onsubmit="efetuarLogin(event)" class="space-y-4 font-lato">
+      <form id="formLogin" onsubmit="efetuarLogin(event)" class="space-y-4">
         <div>
-          <label class="text-xs font-bold text-slate-200 uppercase tracking-wider block mb-1 font-montserrat">E-mail de Acesso</label>
-          <div class="relative">
-            <input type="email" id="loginUsuario" required placeholder="seu.email@campus.com" class="w-full bg-black/40 border border-[#FEDD00] rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:border-[#FEDD00] text-sm">
-            <svg class="w-4 h-4 text-[#FEDD00] absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-          </div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1">E-mail</label>
+          <input type="email" id="loginUsuario" required placeholder="seu.email@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm">
         </div>
 
         <div>
-          <label class="text-xs font-bold text-slate-200 uppercase tracking-wider block mb-1 font-montserrat">Senha</label>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-xs font-semibold text-slate-700">Senha</label>
+            <button type="button" onclick="enviarPrimeiroAcessoEmail()" class="text-xs font-semibold text-[#0099ff] hover:underline">
+              Primeiro acesso / Esqueci a senha
+            </button>
+          </div>
           <div class="relative">
-            <input type="password" id="loginSenha" required placeholder="••••••••" class="w-full bg-black/40 border border-[#FEDD00] rounded-xl py-3 pl-10 pr-10 text-white placeholder-slate-400 focus:outline-none focus:border-[#FEDD00] text-sm">
-            <svg class="w-4 h-4 text-[#FEDD00] absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            <button type="button" onclick="alternarVisibilidadeSenha()" class="absolute right-3.5 top-3.5 text-slate-300 hover:text-white text-xs">👁️</button>
+            <input type="password" id="loginSenha" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 pl-4 pr-10 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm">
+            <button type="button" onclick="alternarVisibilidadeSenha()" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 text-xs">👁️</button>
           </div>
         </div>
 
-        <p id="msgErroLogin" class="text-xs font-bold text-rose-300 min-h-[16px] text-center font-lato hidden"></p>
+        <p id="msgErroLogin" class="text-xs font-semibold min-h-[16px] text-center hidden"></p>
 
-        <button type="submit" id="btnSubmitLogin" class="w-full bg-[#FEDD00] hover:bg-[#e5c700] text-slate-950 font-montserrat font-extrabold py-3.5 rounded-xl transition shadow-lg text-sm border border-[#FEDD00] mt-2">
+        <button type="submit" id="btnSubmitLogin" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-[#0099ff]/25 text-sm">
           ENTRAR NA PLATAFORMA
         </button>
       </form>
-
-      <div class="border-t border-white/10 pt-4 text-center">
-        <p class="text-[11px] text-slate-300">
-          Acesso restrito a coordenadores cadastrados via Firebase Authentication.
-        </p>
-      </div>
-
     </div>
   </div>
 
-  <!-- CONTAINER DA APLICAÇÃO (INICIALMENTE OCULTO) -->
-  <div id="appConteudo" class="hidden min-h-screen flex flex-col">
+  <!-- CONTAINER DA APLICAÇÃO -->
+  <div id="appConteudo" class="hidden h-screen w-screen flex overflow-hidden">
 
-    <!-- TOPBAR -->
-    <header class="bg-[#2c5697]/95 backdrop-blur-md sticky top-0 z-40 shadow-xl">
-      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-        <div class="flex items-center gap-3">
-          <!-- Ícone circular CP -->
-          <div class="w-10 h-10 rounded-full bg-[#2c5697] flex items-center justify-center text-white font-black text-lg shadow-lg font-montserrat border border-white/20">
-            CP
+    <!-- BARRA LATERAL FIXA -->
+    <aside class="w-64 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-xl h-screen">
+      
+      <div class="space-y-6">
+        <div class="flex items-center gap-3 px-1 py-2 border-b border-slate-800">
+          <div class="w-12 h-12 bg-[#0099ff] rounded-2xl flex items-center justify-center p-0.5 shadow-md shrink-0">
+            <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
           </div>
-          <div>
-            <h1 class="font-montserrat font-bold text-lg text-white tracking-wide">CAMPUS PARTY BRASIL</h1>
-            <p class="text-xs text-[#FEDD00] font-montserrat font-semibold uppercase tracking-wider flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-[#FEDD00] animate-pulse"></span> Nuvem Ativa • <span id="userEmailConectado" class="normal-case text-white/90"></span>
-            </p>
+          <div class="leading-tight">
+            <h1 class="font-extrabold text-white text-base tracking-tight">Campus Party</h1>
+            <p class="text-[10px] text-[#0099ff] font-bold uppercase tracking-wider">VOLUNTÁRIOS</p>
           </div>
         </div>
 
-        <!-- Relógio Digital -->
-        <div class="bg-black/40 px-4 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 shadow-inner">
-          <svg class="w-4 h-4 text-[#FEDD00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <span id="relogioDigital" class="font-montserrat text-xs font-bold text-[#FEDD00] tracking-wider">--/--/---- - 00:00:00</span>
+        <!-- 4 ABAS DE NAVEGAÇÃO -->
+        <nav class="space-y-1">
+          <button id="navVoluntarios" onclick="navegarPara('voluntarios')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            Voluntários (Base)
+          </button>
+
+          <button id="navEscalas" onclick="navegarPara('escalas')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Escalas & Turnos
+          </button>
+
+          <button id="navDashboard" onclick="navegarPara('dashboard')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#0099ff] text-white font-semibold text-sm shadow-md shadow-[#0099ff]/30 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            Dashboard
+          </button>
+
+          <button id="navSetup" onclick="navegarPara('setup')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            Setup / Configuração
+          </button>
+        </nav>
+      </div>
+
+      <!-- Rodapé do Usuário Fixo -->
+      <div class="border-t border-slate-800 pt-4 space-y-3">
+        <div class="flex items-center gap-3 px-1">
+          <div id="sidebarUserInitial" class="w-9 h-9 rounded-full bg-[#0099ff] text-white font-bold flex items-center justify-center text-sm shadow shrink-0">
+            U
+          </div>
+          <div class="overflow-hidden">
+            <p id="sidebarUserName" class="text-xs font-bold text-white truncate">Usuário</p>
+            <p id="sidebarUserEmail" class="text-[11px] text-slate-400 truncate">usuario@campus.com</p>
+          </div>
         </div>
 
-        <!-- Ações rápidas -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <button onclick="baixarModeloExcel()" class="bg-black/30 hover:bg-black/50 text-white text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5 border border-[#FEDD00] font-montserrat">
-            <svg class="w-4 h-4 text-[#FEDD00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Modelo Excel
-          </button>
-          <label class="bg-black/30 hover:bg-black/50 text-white text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5 border border-[#FEDD00] cursor-pointer font-montserrat">
-            <svg class="w-4 h-4 text-[#FEDD00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Importar
-            <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
-          </label>
-          <button onclick="exportarExcel()" class="bg-black/30 hover:bg-black/50 text-white text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5 border border-[#FEDD00] font-montserrat">
-            <svg class="w-4 h-4 text-[#FEDD00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Exportar
-          </button>
-          <button onclick="abrirModalNovoVoluntario()" class="bg-[#FEDD00] hover:bg-[#e5c700] text-slate-950 text-xs font-extrabold px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow-md font-montserrat border border-[#FEDD00]">
-            + Novo Voluntário
-          </button>
-          <!-- Botão Sair -->
-          <button onclick="efetuarLogout()" title="Sair da Plataforma" class="bg-rose-600/80 hover:bg-rose-700 text-white text-xs px-3 py-2 rounded-lg font-bold transition flex items-center gap-1 border border-rose-500 font-montserrat">
-            🚪 Sair
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+          <span id="sidebarUserBadge" class="bg-[#FEDD00] text-slate-950 font-extrabold px-2 py-0.5 rounded text-[10px]">Coordenador</span>
+          <button onclick="efetuarLogout()" class="hover:text-rose-400 transition flex items-center gap-1 font-medium">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Sair
           </button>
         </div>
       </div>
-    </header>
 
-    <!-- CONTEÚDO PRINCIPAL -->
-    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+    </aside>
 
-      <!-- DASHBOARD SUPERIOR DE CARDS -->
-      <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <!-- Card 1: TOTAL CADASTRADOS -->
-        <div class="bg-[#2c5697]/95 backdrop-blur-md p-5 rounded-2xl border border-[#FEDD00] shadow-2xl relative flex flex-col justify-between">
-          <div class="flex justify-between items-start">
-            <div>
-              <p class="text-[11px] font-bold text-slate-200 tracking-wider uppercase font-montserrat">TOTAL CADASTRADOS</p>
-              <p id="metricTotal" class="text-3xl font-extrabold font-montserrat text-white mt-1">0</p>
-            </div>
-            <div class="w-10 h-10 rounded-xl bg-black/30 border border-[#FEDD00] flex items-center justify-center text-[#FEDD00]">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            </div>
-          </div>
-          <p class="text-xs text-slate-200 font-medium mt-3 flex items-center gap-1 font-lato">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#FEDD00]"></span> Voluntários no sistema
-          </p>
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+
+      <!-- TOPBAR SUPERIOR -->
+      <header class="bg-white border-b border-slate-200 px-8 py-4 flex flex-wrap justify-between items-center gap-4 shrink-0">
+        <div>
+          <h2 id="tituloPaginaHeader" class="text-2xl font-bold text-slate-900">Dashboard e Presença ao Vivo</h2>
+          <p id="subtituloPaginaHeader" class="text-xs text-slate-500">Controle de presenças, métricas e check-in/out durante o evento</p>
         </div>
 
-        <!-- Card 2: EM ATIVIDADE -->
-        <div class="bg-[#2c5697]/95 backdrop-blur-md p-5 rounded-2xl border border-[#FEDD00] shadow-2xl relative flex flex-col justify-between">
-          <div class="flex justify-between items-start">
-            <div>
-              <p class="text-[11px] font-bold text-slate-200 tracking-wider uppercase font-montserrat">EM ATIVIDADE (PRESENTES)</p>
-              <p id="metricPresentes" class="text-3xl font-extrabold font-montserrat text-[#FEDD00] mt-1">0</p>
-            </div>
-            <div class="w-10 h-10 rounded-xl bg-[#FEDD00]/20 border border-[#FEDD00] flex items-center justify-center text-[#FEDD00]">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-          </div>
-          <p class="text-xs text-[#FEDD00] font-medium mt-3 font-lato">
-            <span id="metricPorcentagem" class="font-bold">0%</span> da equipe trabalhando agora
-          </p>
+        <div id="containerBotoesTopHeader" class="flex items-center gap-3">
+          <button onclick="baixarModeloExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300">
+            📥 Modelo Excel
+          </button>
+          <label class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300 cursor-pointer">
+            📤 Importar Voluntários
+            <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
+          </label>
+          <button onclick="exportarExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 border border-slate-300">
+            📊 Exportar Relatório
+          </button>
+          <button onclick="abrirModalNovoVoluntario()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20">
+            + Novo Voluntário
+          </button>
         </div>
+      </header>
 
-        <!-- Card 3: FORA DO TURNO / AUSENTES -->
-        <div class="bg-[#2c5697]/95 backdrop-blur-md p-5 rounded-2xl border border-[#FEDD00] shadow-2xl relative flex flex-col justify-between">
-          <div class="flex justify-between items-start">
+      <!-- ABA 1: LISTA GERAL DE VOLUNTÁRIOS -->
+      <main id="secaoVoluntarios" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-[11px] font-bold text-slate-200 tracking-wider uppercase font-montserrat">FORA DO TURNO / AUSENTES</p>
-              <p id="metricAusentes" class="text-3xl font-extrabold font-montserrat text-slate-100 mt-1">0</p>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Total Selecionados</p>
+              <p id="metricBaseTotal" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
+              <p class="text-xs text-slate-400 mt-1">Cadastrados via formulário/Excel</p>
             </div>
-            <div class="w-10 h-10 rounded-xl bg-black/30 border border-[#FEDD00] flex items-center justify-center text-slate-200">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center font-bold text-lg">
+              📋
             </div>
           </div>
-          <p class="text-xs text-slate-200 font-medium mt-3 font-lato">Aguardando próximo turno</p>
-        </div>
 
-        <!-- Card 4: METAS CONCLUÍDAS -->
-        <div class="bg-[#2c5697]/95 backdrop-blur-md p-5 rounded-2xl border border-[#FEDD00] shadow-2xl relative flex flex-col justify-between">
-          <div class="flex justify-between items-start">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-[11px] font-bold text-slate-200 tracking-wider uppercase font-montserrat">METAS CONCLUÍDAS (6H+)</p>
-              <p id="metricConcluidos" class="text-3xl font-extrabold font-montserrat text-white mt-1">0</p>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Confirmados na Reunião</p>
+              <p id="metricBaseConfirmados" class="text-3xl font-extrabold text-emerald-600 mt-1">0</p>
+              <p class="text-xs text-emerald-600 font-semibold mt-1">Enviados para a Escala</p>
             </div>
-            <div class="w-10 h-10 rounded-xl bg-black/30 border border-[#FEDD00] flex items-center justify-center text-white">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+              ✓
             </div>
           </div>
-          <p class="text-xs text-white font-medium mt-3 flex items-center gap-1 font-lato">
-            ✓ Carga cumprida
-          </p>
-        </div>
 
-      </section>
-
-      <!-- SEÇÃO CENTRAL: GRÁFICO + CONSULTA RÁPIDA -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Card Esquerdo: Distribuição por Área -->
-        <div class="lg:col-span-2 bg-[#2c5697]/95 backdrop-blur-md p-6 rounded-2xl border border-[#FEDD00] shadow-2xl space-y-4">
-          <div class="flex justify-between items-start">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <h3 class="text-lg font-bold font-montserrat text-white flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-[#FEDD00]"></span> Distribuição e Presença por Área
-              </h3>
-              <p class="text-xs text-slate-200 font-lato">Visão geral dos voluntários por palcos, bancadas e infraestrutura</p>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Ausentes / Desistentes</p>
+              <p id="metricBaseDesistentes" class="text-3xl font-extrabold text-rose-600 mt-1">0</p>
+              <p class="text-xs text-rose-600 font-semibold mt-1">Não irão para a escala</p>
             </div>
-            <span class="text-[11px] font-bold font-montserrat bg-black/40 text-[#FEDD00] px-3.5 py-1.5 rounded-xl border border-[#FEDD00] uppercase tracking-wider">
-              CPBR
-            </span>
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg">
+              ✕
+            </div>
           </div>
+        </section>
 
-          <div class="relative h-60 w-full pt-2">
-            <canvas id="chartPresenca"></canvas>
-          </div>
-        </div>
-
-        <!-- Card Direito: Consulta Rápida -->
-        <div class="bg-[#2c5697]/95 backdrop-blur-md p-6 rounded-2xl border border-[#FEDD00] shadow-2xl flex flex-col justify-between space-y-4">
-          <div>
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="text-base font-bold font-montserrat text-white flex items-center gap-2">
-                <svg class="w-4 h-4 text-[#FEDD00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                Consulta Rápida
-              </h3>
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FEDD00]/20 text-[#FEDD00] border border-[#FEDD00] animate-pulse font-montserrat">
-                Ao Vivo
-              </span>
+        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Check-in da Reunião Presencial</h3>
+              <p class="text-xs text-slate-500">Marque a caixinha apenas dos voluntários que compareceram. Apenas os marcados sobem para as escalas.</p>
             </div>
 
-            <p class="text-xs text-slate-200 mb-4 font-lato">Digite o CPF ou Nome para localizar detalhes rápidos e alternar status.</p>
+            <div class="flex flex-wrap items-center gap-3">
+              <input type="text" id="filtroVoluntariosBase" oninput="renderizarListaVoluntarios()" placeholder="Buscar candidato..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              
+              <button onclick="exportarRelatorioReuniao()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 flex items-center gap-1.5">
+                📋 Exportar Presença Reunião (.xlsx)
+              </button>
 
-            <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="space-y-3">
-              <div>
-                <label class="text-[10px] font-bold text-slate-200 uppercase tracking-wider block mb-1 font-montserrat">CPF OU NOME DO VOLUNTÁRIO</label>
-                <div class="relative">
-                  <input type="text" id="inputKiosk" placeholder="Ex: 123.456.789-00 ou Ana" class="w-full bg-black/40 border border-[#FEDD00] rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-300 focus:outline-none focus:border-[#FEDD00] text-sm font-mono">
-                  <svg class="w-4 h-4 text-slate-300 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                </div>
+              <button onclick="limparTodosDados()" class="text-xs text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl border border-rose-200 transition font-semibold btn-admin-only">
+                Limpar Todos
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th class="p-4 text-center w-36">Confirmar?</th>
+                  <th class="p-4">Voluntário</th>
+                  <th class="p-4">E-mail</th>
+                  <th class="p-4">QR Code</th>
+                  <th class="p-4">Status da Reunião</th>
+                  <th class="p-4 text-right col-admin-only">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaCorpoVoluntariosBase" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- ABA 2: ESCALAS & TURNOS -->
+      <main id="secaoEscalas" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <section id="cardsResumoTurnos" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Renderizado via JS -->
+        </section>
+
+        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-3">
+                <h3 class="text-base font-bold text-slate-900">Planejamento da Escala da Equipe</h3>
+                <span class="text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Salvamento automático ativo
+                </span>
               </div>
+              <p class="text-xs text-slate-500 mt-0.5">Exibindo apenas voluntários confirmados na reunião presencial</p>
+            </div>
 
+            <div class="flex items-center gap-3">
+              <button onclick="salvarTodasEscalasManual()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-md shadow-emerald-600/20 flex items-center gap-1.5">
+                💾 Salvar Alterações
+              </button>
+              <button onclick="exportarEscalaOficial()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20">
+                📋 Exportar Escala (.xlsx)
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th class="p-4">Voluntário</th>
+                  <th class="p-4">E-mail</th>
+                  <th class="p-4">Definir Área / Palco</th>
+                  <th class="p-4">Definir Turno de Trabalho</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaCorpoEscalas" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- ABA 3: DASHBOARD -->
+      <main id="secaoDashboard" class="p-8 space-y-6 overflow-y-auto flex-1">
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Pessoas Selecionadas</p>
+              <p id="metricTotalSelecionados" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
+              <p class="text-xs text-slate-400 mt-1">Total na base inicial</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Setor Definido</p>
+              <p id="metricSetorDefinido" class="text-3xl font-extrabold text-indigo-600 mt-1">0</p>
+              <p class="text-xs text-indigo-600 font-semibold mt-1"><span id="metricSetorPct">0%</span> escalados em palcos</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m3 0h10M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Em Atividade (Presentes)</p>
+              <p id="metricPresentes" class="text-3xl font-extrabold text-emerald-600 mt-1">0</p>
+              <p class="text-xs text-emerald-600 font-semibold mt-1"><span id="metricPorcentagem">0%</span> em campo agora</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase">Carga Cumprida (<span id="txtMetaHorasTitulo">12</span>h)</p>
+              <p id="metricConcluidos" class="text-3xl font-extrabold text-[#0099ff] mt-1">0</p>
+              <p class="text-xs text-[#0099ff] font-semibold mt-1">✓ Meta de <span id="txtMetaHorasSub">12</span>h atingida</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#0099ff] flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+          </div>
+
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Distribuição por Área</h3>
+              <p class="text-xs text-slate-500">Presença por palco e setores do evento</p>
+            </div>
+            <div class="relative h-64 w-full pt-2">
+              <canvas id="chartPresenca"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 mb-1 flex items-center justify-between">
+                Consulta Rápida
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              </h3>
+              <p class="text-xs text-slate-500 mb-4">Digite E-mail/Nome ou faça a leitura do QR Code.</p>
+
+              <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="space-y-3">
+                <div>
+                  <input type="text" id="inputKiosk" placeholder="E-mail, Nome ou QR Code..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm font-mono">
+                </div>
+                <div class="flex gap-2">
+                  <button type="submit" class="flex-1 bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md shadow-[#0099ff]/20">
+                    REGISTRAR PONTO
+                  </button>
+                  <button type="button" onclick="abrirModalCamera()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-xl border border-slate-300">
+                    📷
+                  </button>
+                </div>
+              </form>
+              <p id="msgKiosk" class="text-xs font-bold mt-2 min-h-[16px]"></p>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3 text-[11px] text-slate-400 text-center">
+              Manhã (10h-17h) • Tarde (12h-18h) • Noite (15h-22h)
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Painel de Presença dos Confirmados</h3>
+              <p class="text-xs text-slate-500">Lista completa com status ao vivo e registro de horas</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar voluntário..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-60 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              
+              <select id="filtroArea" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todas">Todas as Áreas / Palcos</option>
+              </select>
+
+              <select id="filtroStatus" onchange="renderizarTabela()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todos">Todos os Status</option>
+                <option value="presente">Presentes</option>
+                <option value="ausente">Ausentes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th class="p-4">Voluntário</th>
+                  <th class="p-4">QR Code</th>
+                  <th class="p-4">Área / Palco</th>
+                  <th class="p-4">Status</th>
+                  <th class="p-4">Entrada</th>
+                  <th class="p-4">Saída</th>
+                  <th class="p-4">Horas Ativas</th>
+                  <th class="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaCorpo" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- ABA 4: SETUP / CONFIGURAÇÕES (APENAS COORDENADORES) -->
+      <main id="secaoSetup" class="p-8 space-y-6 overflow-y-auto flex-1 hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <!-- GERENCIAMENTO DE OPERADORES & ACESSOS COM CAMPO NOME -->
+          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Gestão de Acessos</h3>
+              <p class="text-xs text-slate-500">Cadastre o nome, e-mail e função dos operadores</p>
+            </div>
+
+            <form onsubmit="adicionarUsuarioOperador(event)" class="space-y-3">
+              <div>
+                <input type="text" id="novoUsuarioNome" required placeholder="Nome completo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              </div>
+              <div>
+                <input type="email" id="novoUsuarioEmail" required placeholder="operador@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              </div>
               <div class="flex gap-2">
-                <button type="submit" class="flex-1 bg-[#FEDD00] hover:bg-[#e5c700] text-slate-950 font-extrabold py-2.5 rounded-xl transition font-montserrat text-xs shadow-md border border-[#FEDD00]">
-                  REGISTRAR
-                </button>
-                <button type="button" onclick="abrirModalCamera()" class="bg-black/40 hover:bg-black/60 text-[#FEDD00] p-2.5 rounded-xl border border-[#FEDD00]">
-                  📷
+                <select id="novoUsuarioRole" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                  <option value="operador">Operador (Apenas Ponto)</option>
+                  <option value="coordenador">Coordenador (Acesso Master)</option>
+                </select>
+                <button type="submit" id="btnSalvarUsuarioSetup" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+                  + Salvar
                 </button>
               </div>
             </form>
-            <p id="msgKiosk" class="text-xs min-h-[16px] font-bold mt-2 font-lato"></p>
-          </div>
 
-          <div class="border-t border-white/10 pt-3">
-            <p class="text-[11px] text-slate-200 text-center font-lato">
-              Horários definidos: Manhã (10h-17h) | Noite (15h-22h)
-            </p>
-          </div>
+            <ul id="listaUsuariosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
+          </section>
+
+          <!-- PAINEL DE CONFIGURAÇÃO DA CARGA HORÁRIA DO EVENTO -->
+          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Carga Horária do Evento</h3>
+              <p class="text-xs text-slate-500">Defina a meta total de horas para o voluntário ter a carga cumprida</p>
+            </div>
+
+            <form onsubmit="salvarMetaHorasSetup(event)" class="space-y-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-700 block mb-1">Meta de Horas Total (h)</label>
+                <input type="number" id="inputMetaHorasSetup" min="1" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] font-bold">
+              </div>
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+                💾 Salvar Meta de Horas
+              </button>
+            </form>
+          </section>
+
+          <!-- CONFIGURAÇÃO DE PALCOS / ÁREAS -->
+          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Palcos e Áreas</h3>
+              <p class="text-xs text-slate-500">Cadastre os palcos disponíveis nesta edição</p>
+            </div>
+
+            <form onsubmit="adicionarPalcoSetup(event)" class="flex gap-2">
+              <input type="text" id="novoPalcoSetup" required placeholder="Nome do novo palco" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+                + Adicionar
+              </button>
+            </form>
+
+            <ul id="listaPalcosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
+          </section>
+
+          <!-- CONFIGURAÇÃO DE TURNOS E HORÁRIOS -->
+          <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Turnos de Trabalho</h3>
+              <p class="text-xs text-slate-500">Configure os horários dos turnos do evento</p>
+            </div>
+
+            <form onsubmit="adicionarTurnoSetup(event)" class="space-y-3">
+              <div class="grid grid-cols-3 gap-2">
+                <input type="text" id="novoTurnoNome" required placeholder="Nome" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <input type="time" id="novoTurnoInicio" required class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <input type="time" id="novoTurnoFim" required class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              </div>
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition shadow-md shadow-[#0099ff]/20">
+                + Adicionar Turno
+              </button>
+            </form>
+
+            <ul id="listaTurnosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
+          </section>
+
         </div>
+      </main>
 
-      </section>
-
-      <!-- PAINEL DE VOLUNTÁRIOS E TABELA -->
-      <section class="bg-[#2c5697]/95 backdrop-blur-md rounded-2xl border border-[#FEDD00] p-6 shadow-2xl space-y-4">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-white font-montserrat">Painel de Voluntários</h3>
-            <p class="text-xs text-slate-200 font-lato">Gerencie a entrada, saída e alertas de horário</p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <input type="text" id="filtroTexto" oninput="renderizarTabela()" placeholder="Buscar por nome, CPF ou QR Code..." class="bg-black/40 border border-[#FEDD00] text-xs text-white rounded-lg px-3 py-2 w-64 focus:outline-none focus:border-[#FEDD00] font-lato placeholder-slate-300">
-            
-            <select id="filtroStatus" onchange="renderizarTabela()" class="bg-black/40 border border-[#FEDD00] text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#FEDD00] font-lato">
-              <option value="todos">Todos os Status</option>
-              <option value="presente">Presentes</option>
-              <option value="ausente">Ausentes</option>
-            </select>
-
-            <button onclick="limparTodosDados()" class="text-xs text-white bg-black/40 hover:bg-black/60 px-3 py-2 rounded-lg border border-[#FEDD00] transition font-montserrat font-semibold">
-              Limpar Tudo
-            </button>
-          </div>
-        </div>
-
-        <!-- Tabela -->
-        <div class="overflow-x-auto rounded-xl border border-white/10">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-black/40 text-slate-100 text-xs font-bold uppercase tracking-wider border-b border-white/15 font-montserrat">
-                <th class="p-4">Voluntário</th>
-                <th class="p-4">QR Code / Tag</th>
-                <th class="p-4">Área / Palco</th>
-                <th class="p-4">Status</th>
-                <th class="p-4">Entrada</th>
-                <th class="p-4">Saída</th>
-                <th class="p-4">Horas Ativas</th>
-                <th class="p-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tabelaCorpo" class="divide-y divide-white/10 text-sm font-lato">
-              <!-- Renderizado via JS -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- RODAPÉ INSTITUCIONAL -->
-    <footer class="border-t border-[#FEDD00] bg-[#2c5697]/95 backdrop-blur-md py-6 mt-8">
-      <div class="max-w-7xl mx-auto px-4 text-center space-y-1 font-lato">
-        <p class="text-xs font-medium text-slate-200 tracking-wide">
-          Campus Party Voluntários Management System &copy; 2026 - Plataforma de Controle de Turnos
-        </p>
-        <p class="text-[11px] text-slate-300">
-          Desenvolvido por Campus Party Brasil, Todos os direitos reservados.
-        </p>
-      </div>
-    </footer>
-
+    </div>
   </div>
 
   <!-- MODAL: CÂMERA SCANNER QR CODE -->
-  <div id="modalCamera" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#2c5697] border border-[#FEDD00] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-white/10 pb-3">
-        <h3 class="font-montserrat font-bold text-white text-lg flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-[#FEDD00] animate-ping"></span> Leitor de QR Code
-        </h3>
-        <button onclick="fecharModalCamera()" class="text-slate-300 hover:text-white font-bold text-xl">✕</button>
+  <div id="modalCamera" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-base">Leitor de QR Code</h3>
+        <button onclick="fecharModalCamera()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">✕</button>
       </div>
-
-      <div class="overflow-hidden rounded-xl bg-black/40 border border-white/10 p-2">
+      <div class="overflow-hidden rounded-xl bg-slate-100 border border-slate-200 p-2">
         <div id="reader" class="w-full"></div>
       </div>
-
-      <p id="msgCamera" class="text-center text-xs text-slate-200 font-lato">Aponte a câmera para o QR Code do crachá do voluntário</p>
-
       <div class="flex justify-end pt-2">
-        <button onclick="fecharModalCamera()" class="px-4 py-2 rounded-lg text-xs bg-black/40 text-slate-200 font-medium font-montserrat border border-white/10">Fechar Câmera</button>
+        <button onclick="fecharModalCamera()" class="px-4 py-2 rounded-xl text-xs bg-slate-100 text-slate-700 font-semibold border border-slate-200">Fechar Câmera</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: NOVO VOLUNTÁRIO COMPLETO -->
-  <div id="modalNovoVoluntario" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-[#2c5697] border border-[#FEDD00] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-white/10 pb-3">
-        <h3 class="font-montserrat font-bold text-white text-lg">Cadastrar Voluntário</h3>
-        <button onclick="fecharModalNovoVoluntario()" class="text-slate-300 hover:text-white font-bold text-xl">✕</button>
+  <!-- MODAL: NOVO VOLUNTÁRIO -->
+  <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 text-base">Cadastrar Voluntário</h3>
+        <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">✕</button>
       </div>
 
-      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-3 font-lato">
+      <form id="formNovoVoluntario" onsubmit="salvarNovoVoluntario(event)" class="space-y-3">
         <div>
-          <label class="text-xs text-slate-200 block mb-1">Nome Completo *</label>
-          <input type="text" id="novoNome" required class="w-full bg-black/40 border border-[#FEDD00] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#FEDD00]">
+          <label class="text-xs font-semibold text-slate-700 block mb-1">Nome Completo *</label>
+          <input type="text" id="novoNome" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs text-slate-200 block mb-1">CPF *</label>
-            <input type="text" id="novoCPF" required placeholder="000.000.000-00" class="w-full bg-black/40 border border-[#FEDD00] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#FEDD00]">
+            <label class="text-xs font-semibold text-slate-700 block mb-1">E-mail</label>
+            <input type="email" id="novoEmail" placeholder="voluntario@email.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
           </div>
           <div>
-            <label class="text-xs text-slate-200 block mb-1">Código QR Code</label>
-            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-black/40 border border-[#FEDD00] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#FEDD00]">
+            <label class="text-xs font-semibold text-slate-700 block mb-1">QR Code</label>
+            <input type="text" id="novoQRCode" placeholder="ex: 4e-6123699472" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs text-slate-200 block mb-1">Área / Palco</label>
-            <input type="text" id="novoArea" placeholder="ex: Palco Principal" class="w-full bg-black/40 border border-[#FEDD00] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#FEDD00]">
-          </div>
-          <div>
-            <label class="text-xs text-slate-200 block mb-1">Turno</label>
-            <select id="novoTurno" class="w-full bg-black/40 border border-[#FEDD00] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#FEDD00]">
-              <option value="Manhã">Manhã (10h - 17h)</option>
-              <option value="Tarde">Tarde (12h - 18h)</option>
-              <option value="Noite">Noite (15h - 22h)</option>
-              <option value="Madrugada">Madrugada (22h - 06h)</option>
-            </select>
-          </div>
+        <div class="pt-2">
+          <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+            <input type="checkbox" id="novoConfirmado" class="w-4 h-4 text-[#0099ff] rounded focus:ring-blue-500">
+            Confirmado na Reunião Presencial (já vai direto para escala)
+          </label>
         </div>
 
-        <div class="flex justify-end gap-2 pt-3 border-t border-white/10">
-          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-4 py-2 rounded-lg text-xs bg-black/40 text-slate-200 font-medium font-montserrat border border-white/10">Cancelar</button>
-          <button type="submit" class="px-4 py-2 rounded-lg text-xs bg-[#FEDD00] text-slate-950 font-bold font-montserrat border border-[#FEDD00]">Salvar Voluntário</button>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="fecharModalNovoVoluntario()" class="px-4 py-2 rounded-xl text-xs bg-slate-100 text-slate-700 font-semibold border border-slate-200">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-xl text-xs bg-[#0099ff] text-white font-bold shadow-md shadow-[#0099ff]/20">Salvar Voluntário</button>
         </div>
       </form>
     </div>
@@ -532,10 +821,119 @@
     let html5QrcodeScanner = null;
     let chartInstance = null;
 
+    // CONTROLE DE NÍVEIS DE ACESSO NA INTERFACE (OCULTA BOTÕES DO OPERADOR)
+    window.aplicarPermissoesInterface = function() {
+      const eCoordenador = (window.usuarioLogadoRole === 'coordenador');
+
+      const navVoluntarios = document.getElementById('navVoluntarios');
+      const navEscalas = document.getElementById('navEscalas');
+      const navSetup = document.getElementById('navSetup');
+      const containerBotoesHeader = document.getElementById('containerBotoesTopHeader');
+
+      if (!eCoordenador) {
+        // Se for operador, OCULTA completamente do DOM/Display as abas restritas
+        if (navVoluntarios) navVoluntarios.style.display = 'none';
+        if (navEscalas) navEscalas.style.display = 'none';
+        if (navSetup) navSetup.style.display = 'none';
+        if (containerBotoesHeader) containerBotoesHeader.style.display = 'none';
+
+        window.navegarPara('dashboard');
+      } else {
+        if (navVoluntarios) navVoluntarios.style.display = 'flex';
+        if (navEscalas) navEscalas.style.display = 'flex';
+        if (navSetup) navSetup.style.display = 'flex';
+        if (containerBotoesHeader) containerBotoesHeader.style.display = 'flex';
+      }
+    };
+
+    // GERENCIAMENTO DE OPERADORES COM EXIBIÇÃO DE NOME
+    window.renderizarUsuariosSetup = function() {
+      const listaUl = document.getElementById('listaUsuariosSetup');
+      if (!listaUl) return;
+
+      listaUl.innerHTML = '';
+      const usuarios = window.listaUsuarios || {};
+
+      Object.keys(usuarios).forEach(key => {
+        const u = usuarios[key];
+        const li = document.createElement('li');
+        li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
+        li.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-900 block">${u.nome || u.email}</span>
+            <span class="text-[10px] text-slate-400 block font-normal">${u.email}</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded ${u.role === 'coordenador' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} font-bold mt-1 inline-block">
+              ${u.role === 'coordenador' ? 'Coordenador' : 'Operador'}
+            </span>
+          </div>
+          <button onclick="removerUsuarioOperador('${key}')" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
+        `;
+        listaUl.appendChild(li);
+      });
+    };
+
+    // NAVEGAÇÃO DE ABAS
+    window.navegarPara = function(aba) {
+      const secVoluntarios = document.getElementById('secaoVoluntarios');
+      const secEscalas = document.getElementById('secaoEscalas');
+      const secDashboard = document.getElementById('secaoDashboard');
+      const secSetup = document.getElementById('secaoSetup');
+
+      const navVoluntarios = document.getElementById('navVoluntarios');
+      const navEscalas = document.getElementById('navEscalas');
+      const navDashboard = document.getElementById('navDashboard');
+      const navSetup = document.getElementById('navSetup');
+
+      const tituloHeader = document.getElementById('tituloPaginaHeader');
+      const subtituloHeader = document.getElementById('subtituloPaginaHeader');
+
+      const estiloAtivo = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#0099ff] text-white font-semibold text-sm shadow-md shadow-[#0099ff]/30 transition";
+      const estiloInativo = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm";
+
+      secVoluntarios.classList.add('hidden');
+      secEscalas.classList.add('hidden');
+      secDashboard.classList.add('hidden');
+      secSetup.classList.add('hidden');
+
+      if (navVoluntarios) navVoluntarios.className = estiloInativo;
+      if (navEscalas) navEscalas.className = estiloInativo;
+      if (navDashboard) navDashboard.className = estiloInativo;
+      if (navSetup) navSetup.className = estiloInativo;
+
+      if (aba === 'voluntarios' && window.usuarioLogadoRole === 'coordenador') {
+        secVoluntarios.classList.remove('hidden');
+        if (navVoluntarios) navVoluntarios.className = estiloAtivo;
+        tituloHeader.innerText = "Cadastro & Confirmação de Voluntários";
+        subtituloHeader.innerText = "Importe a lista inicial e confirme quem compareceu à reunião presencial";
+        renderizarListaVoluntarios();
+      } else if (aba === 'escalas' && window.usuarioLogadoRole === 'coordenador') {
+        secEscalas.classList.remove('hidden');
+        if (navEscalas) navEscalas.className = estiloAtivo;
+        tituloHeader.innerText = "Escalas & Turnos da Equipe";
+        subtituloHeader.innerText = "Defina os palcos e horários apenas dos voluntários confirmados";
+        renderizarEscalas();
+      } else if (aba === 'dashboard') {
+        secDashboard.classList.remove('hidden');
+        if (navDashboard) navDashboard.className = estiloAtivo;
+        tituloHeader.innerText = "Dashboard e Presença ao Vivo";
+        subtituloHeader.innerText = "Controle de presenças, métricas e check-in/out durante o evento";
+        renderizarTabela();
+      } else if (aba === 'setup' && window.usuarioLogadoRole === 'coordenador') {
+        secSetup.classList.remove('hidden');
+        if (navSetup) navSetup.className = estiloAtivo;
+        tituloHeader.innerText = "Setup / Configurações do Evento";
+        subtituloHeader.innerText = "Gerencie os acessos de operadores, meta de horas, palcos e turnos";
+        renderizarSetup();
+      }
+    };
+
     function exibirPlataforma() {
       document.getElementById('telaLogin').classList.add('hidden');
       document.getElementById('appConteudo').classList.remove('hidden');
+      renderizarListaVoluntarios();
+      renderizarEscalas();
       renderizarTabela();
+      renderizarSetup();
     }
 
     function exibirTelaLogin() {
@@ -549,27 +947,9 @@
       input.type = input.type === 'password' ? 'text' : 'password';
     }
 
-    function atualizarRelogioDataHora() {
-      const agora = new Date();
-      const dataStr = agora.toLocaleDateString('pt-BR');
-      const horaStr = agora.toLocaleTimeString('pt-BR');
-      const el = document.getElementById('relogioDigital');
-      if (el) el.innerText = `${dataStr} - ${horaStr}`;
-    }
-
-    setInterval(atualizarRelogioDataHora, 1000);
-    atualizarRelogioDataHora();
-
     function limparTexto(txt) {
       return String(txt || '').trim().toLowerCase().replace(/[\s\r\n]/g, '');
     }
-
-    const HORARIOS_TURNO = {
-      'manhã': { inicio: 10, fim: 17 },
-      'tarde': { inicio: 12, fim: 18 },
-      'noite': { inicio: 15, fim: 22 },
-      'madrugada': { inicio: 22, fim: 6 }
-    };
 
     function formatarMinutosParaHorasMin(minutosTotais) {
       const min = Math.max(0, Math.floor(minutosTotais || 0));
@@ -593,21 +973,300 @@
       return Math.floor(diffMs / (1000 * 60));
     }
 
-    function verificarTurnoCorreto(turno, horaEntrada) {
+    function verificarTurnoCorreto(turnoId, horaEntrada) {
       if (!horaEntrada || horaEntrada === '--:--') return true;
-      const t = String(turno || '').toLowerCase().trim();
-      const configuracao = HORARIOS_TURNO[t];
-      if (!configuracao) return true;
+      const turnos = window.setupEvento.turnos || [];
+      const turnoEncontrado = turnos.find(t => t.id === turnoId || t.nome === turnoId);
+      if (!turnoEncontrado) return true;
 
-      const partes = horaEntrada.split(':');
-      const horaEntradaNum = parseInt(partes[0]);
+      const horaEntradaNum = parseInt(horaEntrada.split(':')[0]);
+      const horaInicioNum = parseInt(turnoEncontrado.inicio.split(':')[0]);
+      const horaFimNum = parseInt(turnoEncontrado.fim.split(':')[0]);
 
-      if (configuracao.inicio < configuracao.fim) {
-        return (horaEntradaNum >= configuracao.inicio - 1 && horaEntradaNum <= configuracao.fim);
+      if (horaInicioNum < horaFimNum) {
+        return (horaEntradaNum >= horaInicioNum - 1 && horaEntradaNum <= horaFimNum);
       } else {
-        return (horaEntradaNum >= configuracao.inicio - 1 || horaEntradaNum <= configuracao.fim);
+        return (horaEntradaNum >= horaInicioNum - 1 || horaEntradaNum <= horaFimNum);
       }
     }
+
+    // RENDERIZAR ABA BASE DE VOLUNTÁRIOS
+    window.renderizarListaVoluntarios = function() {
+      const corpo = document.getElementById('tabelaCorpoVoluntariosBase');
+      if (!corpo) return;
+
+      const eCoordenador = (window.usuarioLogadoRole === 'coordenador');
+      const filtro = limparTexto(document.getElementById('filtroVoluntariosBase')?.value || '');
+      corpo.innerHTML = '';
+
+      const lista = window.voluntarios || [];
+      let total = lista.length;
+      let confirmados = 0;
+
+      lista.forEach(v => {
+        if (v.confirmado) confirmados++;
+
+        const atendeFiltro = !filtro || 
+                             limparTexto(v.nome).includes(filtro) || 
+                             limparTexto(v.email).includes(filtro) || 
+                             limparTexto(v.qrcode).includes(filtro);
+
+        if (atendeFiltro) {
+          const tr = document.createElement('tr');
+          tr.className = `hover:bg-slate-50/80 transition ${v.confirmado ? 'bg-emerald-50/30' : ''}`;
+
+          tr.innerHTML = `
+            <td class="p-4 text-center">
+              <input type="checkbox" ${v.confirmado ? 'checked' : ''} onchange="alternarConfirmacaoVoluntario('${v.id}')" class="w-5 h-5 text-[#0099ff] rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+            </td>
+            <td class="p-4 font-bold text-slate-900">${v.nome}</td>
+            <td class="p-4 text-xs font-mono text-slate-500">${v.email || 'Sem e-mail'}</td>
+            <td class="p-4">
+              <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                ${v.qrcode || 'N/A'}
+              </span>
+            </td>
+            <td class="p-4">
+              ${v.confirmado 
+                ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Confirmado (Na Escala)</span>`
+                : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">Pendente / Desistente</span>`
+              }
+            </td>
+            ${eCoordenador ? `
+              <td class="p-4 text-right">
+                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">
+                  ✕
+                </button>
+              </td>
+            ` : ''}
+          `;
+          corpo.appendChild(tr);
+        }
+      });
+
+      const desistentes = total - confirmados;
+
+      document.getElementById('metricBaseTotal').innerText = total;
+      document.getElementById('metricBaseConfirmados').innerText = confirmados;
+      document.getElementById('metricBaseDesistentes').innerText = desistentes;
+    };
+
+    window.exportarRelatorioReuniao = function() {
+      const lista = window.voluntarios || [];
+      const dados = lista.map(v => ({
+        "Nome do Voluntário": v.nome,
+        "E-mail": v.email || 'Não informado',
+        "QR Code": v.qrcode || 'N/A',
+        "Compareceu à Reunião?": v.confirmado ? "SIM (CONFIRMADO)" : "NÃO (AUSENTE/DESISTENTE)",
+        "Status para Escala": v.confirmado ? "Liberado para Escala" : "Não Liberado"
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dados);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Presença na Reunião");
+      XLSX.writeFile(wb, `relatorio_presenca_reuniao_voluntarios.xlsx`);
+    };
+
+    window.alternarConfirmacaoVoluntario = function(id) {
+      const v = window.voluntarios.find(item => item.id === id);
+      if (!v) return;
+
+      v.confirmado = !v.confirmado;
+      window.salvarNuvem();
+    };
+
+    // RENDERIZAR ABA SETUP
+    window.renderizarSetup = function() {
+      const listaPalcos = document.getElementById('listaPalcosSetup');
+      const listaTurnos = document.getElementById('listaTurnosSetup');
+      const inputMeta = document.getElementById('inputMetaHorasSetup');
+      if (!listaPalcos || !listaTurnos) return;
+
+      if (inputMeta) inputMeta.value = window.setupEvento.metaHoras || 12;
+
+      listaPalcos.innerHTML = '';
+      (window.setupEvento.palcos || []).forEach((palco, index) => {
+        const li = document.createElement('li');
+        li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
+        li.innerHTML = `
+          <span>📍 ${palco}</span>
+          <button onclick="removerPalcoSetup(${index})" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
+        `;
+        listaPalcos.appendChild(li);
+      });
+
+      listaTurnos.innerHTML = '';
+      (window.setupEvento.turnos || []).forEach((turno, index) => {
+        const li = document.createElement('li');
+        li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
+        li.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-900">${turno.nome}</span>
+            <span class="text-slate-400 font-mono ml-2">(${turno.inicio} - ${turno.fim})</span>
+          </div>
+          <button onclick="removerTurnoSetup(${index})" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
+        `;
+        listaTurnos.appendChild(li);
+      });
+
+      window.renderizarUsuariosSetup();
+    };
+
+    window.removerUsuarioOperador = function(key) {
+      if (confirm("Remover o acesso deste usuário?")) {
+        window.removerUsuarioNuvem(key);
+      }
+    };
+
+    window.salvarMetaHorasSetup = function(e) {
+      e.preventDefault();
+      const val = parseInt(document.getElementById('inputMetaHorasSetup').value);
+      if (val > 0) {
+        window.setupEvento.metaHoras = val;
+        window.salvarSetupNuvem();
+        alert(`Meta de Carga Horária atualizada para ${val}h com sucesso!`);
+      }
+    };
+
+    window.adicionarPalcoSetup = function(e) {
+      e.preventDefault();
+      const input = document.getElementById('novoPalcoSetup');
+      const val = input.value.trim();
+      if (val && !window.setupEvento.palcos.includes(val)) {
+        window.setupEvento.palcos.push(val);
+        window.salvarSetupNuvem();
+        input.value = '';
+      }
+    };
+
+    window.removerPalcoSetup = function(index) {
+      if (confirm("Remover este palco do setup?")) {
+        window.setupEvento.palcos.splice(index, 1);
+        window.salvarSetupNuvem();
+      }
+    };
+
+    window.adicionarTurnoSetup = function(e) {
+      e.preventDefault();
+      const nome = document.getElementById('novoTurnoNome').value.trim();
+      const inicio = document.getElementById('novoTurnoInicio').value;
+      const fim = document.getElementById('novoTurnoFim').value;
+
+      if (nome && inicio && fim) {
+        window.setupEvento.turnos.push({ id: nome, nome: nome, inicio: inicio, fim: fim });
+        window.salvarSetupNuvem();
+        document.getElementById('novoTurnoNome').value = '';
+        document.getElementById('novoTurnoInicio').value = '';
+        document.getElementById('novoTurnoFim').value = '';
+      }
+    };
+
+    window.removerTurnoSetup = function(index) {
+      if (confirm("Remover este turno do setup?")) {
+        window.setupEvento.turnos.splice(index, 1);
+        window.salvarSetupNuvem();
+      }
+    };
+
+    // RENDERIZAR ABA ESCALAS
+    window.renderizarEscalas = function() {
+      const corpoEscalas = document.getElementById('tabelaCorpoEscalas');
+      const containerResumo = document.getElementById('cardsResumoTurnos');
+      if (!corpoEscalas || !containerResumo) return;
+
+      corpoEscalas.innerHTML = '';
+      containerResumo.innerHTML = '';
+
+      const listaConfirmados = (window.voluntarios || []).filter(v => v.confirmado);
+      const palcosSetup = window.setupEvento.palcos || [];
+      const turnosSetup = window.setupEvento.turnos || [];
+
+      const contagemTurnos = {};
+      turnosSetup.forEach(t => contagemTurnos[t.id] = 0);
+
+      listaConfirmados.forEach(v => {
+        if (contagemTurnos[v.turno] !== undefined) contagemTurnos[v.turno]++;
+      });
+
+      turnosSetup.forEach(t => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm";
+        div.innerHTML = `
+          <p class="text-xs font-semibold text-slate-500 uppercase">Turno ${t.nome} (${t.inicio}-${t.fim})</p>
+          <p class="text-2xl font-extrabold text-[#0099ff] mt-1">${contagemTurnos[t.id] || 0} voluntários</p>
+        `;
+        containerResumo.appendChild(div);
+      });
+
+      listaConfirmados.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition";
+
+        let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco/Área...</option>` +
+          palcosSetup.map(p => `<option value="${p}" ${v.area === p ? 'selected' : ''}>${p}</option>`).join('');
+
+        let turnosOptionsHtml = `<option value="" ${!v.turno ? 'selected' : ''}>Selecionar Turno...</option>` +
+          turnosSetup.map(t => `<option value="${t.id}" ${v.turno === t.id ? 'selected' : ''}>${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
+
+        tr.innerHTML = `
+          <td class="p-4 font-bold text-slate-900">${v.nome}</td>
+          <td class="p-4 text-xs font-mono text-slate-500">${v.email || '--'}</td>
+          <td class="p-4">
+            <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-56 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              ${palcosOptionsHtml}
+            </select>
+          </td>
+          <td class="p-4">
+            <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-56 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              ${turnosOptionsHtml}
+            </select>
+          </td>
+        `;
+        corpoEscalas.appendChild(tr);
+      });
+    };
+
+    window.atualizarEscalaAutomatica = function(id, campo, valor) {
+      const v = window.voluntarios.find(item => item.id === id);
+      if (!v) return;
+
+      if (campo === 'area') {
+        v.area = valor || 'Não Definido';
+      } else if (campo === 'turno') {
+        v.turno = valor || '';
+      }
+
+      window.salvarNuvem();
+    };
+
+    window.salvarTodasEscalasManual = function() {
+      window.salvarNuvem();
+      alert("Todas as escalas foram sincronizadas e salvas com sucesso!");
+    };
+
+    window.exportarEscalaOficial = function() {
+      const turnosSetup = window.setupEvento.turnos || [];
+      const confirmados = (window.voluntarios || []).filter(v => v.confirmado);
+
+      const dadosEscala = confirmados.map(v => {
+        const tObj = turnosSetup.find(t => t.id === v.turno);
+        const horarioStr = tObj ? `${tObj.inicio} - ${tObj.fim}` : '--';
+
+        return {
+          "Nome do Voluntário": v.nome,
+          "E-mail": v.email || '',
+          "Código QR": v.qrcode || '',
+          "Área / Palco Designado": v.area || 'Não Definido',
+          "Turno": v.turno || 'Pendente',
+          "Horário de Trabalho": horarioStr
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(dadosEscala);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Escala de Trabalho");
+      XLSX.writeFile(wb, `escala_oficial_voluntarios_campus_party.xlsx`);
+    };
 
     function atualizarGraficoAreas(voluntarios) {
       const canvas = document.getElementById('chartPresenca');
@@ -616,150 +1275,165 @@
       
       const areasMap = {};
       voluntarios.forEach(v => {
-        const area = v.area || 'Geral';
+        const area = v.area || 'Não Definido';
         if (!areasMap[area]) areasMap[area] = { presentes: 0, ausentes: 0 };
         if (v.presente) areasMap[area].presentes++;
         else areasMap[area].ausentes++;
       });
 
-      const labels = Object.keys(areasMap).length > 0 ? Object.keys(areasMap) : ['Palco Principal', 'Credenciamento', 'Arena Gamer'];
+      const labels = Object.keys(areasMap).length > 0 ? Object.keys(areasMap) : ['Palco Principal', 'Credenciamento'];
       const dataPresentes = labels.map(l => areasMap[l] ? areasMap[l].presentes : 0);
       const dataAusentes = labels.map(l => areasMap[l] ? areasMap[l].ausentes : 0);
 
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
+      if (chartInstance) chartInstance.destroy();
 
       chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: labels,
           datasets: [
-            {
-              label: 'Presentes (Em Turno)',
-              data: dataPresentes,
-              backgroundColor: '#FEDD00',
-              borderRadius: 6
-            },
-            {
-              label: 'Ausentes',
-              data: dataAusentes,
-              backgroundColor: '#102342',
-              borderRadius: 6
-            }
+            { label: 'Presentes', data: dataPresentes, backgroundColor: '#0099ff', borderRadius: 6 },
+            { label: 'Ausentes', data: dataAusentes, backgroundColor: '#cbd5e1', borderRadius: 6 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: '#F8FAFC', font: { family: 'Lato', size: 12 } } }
-          },
+          plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 12 } } } },
           scales: {
-            x: { ticks: { color: '#E2E8F0', font: { family: 'Lato' } }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
-            y: { ticks: { color: '#E2E8F0', precision: 0, font: { family: 'Lato' } }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, beginAtZero: true }
+            x: { ticks: { color: '#64748b', font: { family: 'Inter' } }, grid: { display: false } },
+            y: { ticks: { color: '#64748b', precision: 0, font: { family: 'Inter' } }, grid: { color: '#f1f5f9' }, beginAtZero: true }
           }
         }
       });
     }
 
+    // RENDERIZAR ABA DASHBOARD COM TRAVAS DE SEGURANÇA
     window.renderizarTabela = function() {
       const corpo = document.getElementById('tabelaCorpo');
+      const selectAreaFilter = document.getElementById('filtroArea');
       if (!corpo) return;
 
+      const eCoordenador = (window.usuarioLogadoRole === 'coordenador');
       const filtroTexto = limparTexto(document.getElementById('filtroTexto').value);
       const filtroStatus = document.getElementById('filtroStatus').value;
+      const filtroAreaVal = selectAreaFilter ? selectAreaFilter.value : 'todas';
+
+      if (selectAreaFilter) {
+        const palcos = window.setupEvento.palcos || [];
+        let htmlOptions = `<option value="todas" ${filtroAreaVal === 'todas' ? 'selected' : ''}>Todas as Áreas / Palcos</option>`;
+        htmlOptions += `<option value="Não Definido" ${filtroAreaVal === 'Não Definido' ? 'selected' : ''}>Não Definido</option>`;
+        palcos.forEach(p => {
+          htmlOptions += `<option value="${p}" ${filtroAreaVal === p ? 'selected' : ''}>${p}</option>`;
+        });
+        selectAreaFilter.innerHTML = htmlOptions;
+      }
 
       corpo.innerHTML = '';
 
-      const lista = window.voluntarios || [];
-      let total = lista.length;
-      let presentes = 0;
-      let concluidos = 0;
+      const listaBase = window.voluntarios || [];
+      const listaConfirmados = listaBase.filter(v => v.confirmado);
+      
+      const metaHorasConfigurada = window.setupEvento.metaHoras || 12;
+      const metaMinutosConfigurada = metaHorasConfigurada * 60;
 
-      lista.forEach(v => {
+      let totalSelecionados = listaBase.length;
+      let totalSetorDefinido = 0;
+      let presentes = 0;
+      let concluidosMeta = 0;
+
+      listaConfirmados.forEach(v => {
         const minutosTurnoAtual = v.presente ? calcularMinutosDecorridos(v.entrada) : 0;
         const minutosTotais = (v.minutosAcumulados || 0) + minutosTurnoAtual;
 
+        if (v.area && v.area !== 'Não Definido') totalSetorDefinido++;
         if (v.presente) presentes++;
-        if (minutosTotais >= 360) concluidos++;
+        if (minutosTotais >= metaMinutosConfigurada) concluidosMeta++;
 
         const atendeTexto = !filtroTexto || 
                             limparTexto(v.nome).includes(filtroTexto) || 
-                            limparTexto(v.cpf).includes(filtroTexto) || 
+                            limparTexto(v.email).includes(filtroTexto) || 
                             limparTexto(v.qrcode).includes(filtroTexto);
 
         const atendeStatus = filtroStatus === 'todos' || 
                              (filtroStatus === 'presente' && v.presente) || 
                              (filtroStatus === 'ausente' && !v.presente);
 
-        if (atendeTexto && atendeStatus) {
+        const atendeArea = filtroAreaVal === 'todas' || (v.area || 'Não Definido') === filtroAreaVal;
+
+        if (atendeTexto && atendeStatus && atendeArea) {
           const alertaExcesso6h = v.presente && minutosTurnoAtual >= 360;
           const turnoCorreto = verificarTurnoCorreto(v.turno, v.entrada);
           const alertaTurnoIncorreto = v.presente && !turnoCorreto;
 
           const tr = document.createElement('tr');
-          tr.className = `hover:bg-black/30 transition ${alertaExcesso6h ? 'bg-amber-500/20' : ''}`;
+          tr.className = `hover:bg-slate-50/80 transition ${alertaExcesso6h ? 'bg-amber-50/60' : ''}`;
 
           tr.innerHTML = `
             <td class="p-4">
-              <div class="font-bold flex items-center gap-2 ${alertaExcesso6h ? 'text-[#FEDD00]' : 'text-white'} font-montserrat">
+              <div class="font-bold text-slate-900 flex items-center gap-2">
                 ${v.nome}
-                ${alertaExcesso6h ? `<span class="text-xs bg-amber-500/40 text-[#FEDD00] border border-amber-300 px-2 py-0.5 rounded-full animate-bounce font-lato">⚠️ +6h Ativo</span>` : ''}
+                ${alertaExcesso6h ? `<span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold">⚠️ +6h Ativo</span>` : ''}
               </div>
-              <div class="text-xs text-slate-300 font-mono">CPF: ${v.cpf}</div>
+              <div class="text-xs text-slate-400 font-mono">${v.email || 'Sem e-mail'}</div>
             </td>
             <td class="p-4">
-              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono bg-black/40 border border-[#FEDD00] text-[#FEDD00]">
+              <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-slate-100 text-slate-700 font-medium border border-slate-200">
                 ${v.qrcode || 'N/A'}
               </span>
             </td>
             <td class="p-4">
-              <div class="text-xs text-slate-200 flex items-center gap-1.5 font-lato">
-                ${v.area || 'Geral'}
-                ${alertaTurnoIncorreto ? `<span class="text-[9px] bg-amber-500/40 text-amber-200 border border-amber-300 px-1.5 py-0.5 rounded font-bold font-montserrat">Turno Incorreto</span>` : ''}
+              <div class="text-xs text-slate-700 flex items-center gap-1.5 font-medium">
+                ${v.area || 'Não Definido'}
+                ${alertaTurnoIncorreto ? `<span class="text-[9px] bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold">Turno Incorreto</span>` : ''}
               </div>
-              <div class="text-[10px] text-slate-300 uppercase font-montserrat">${v.turno || 'Integral'}</div>
+              <div class="text-[10px] text-slate-400 uppercase font-semibold">${v.turno || 'Pendente'}</div>
             </td>
             <td class="p-4">
               ${alertaExcesso6h 
-                ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/40 text-[#FEDD00] border border-amber-300 animate-pulse font-montserrat">Excesso (+6h)</span>`
+                ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">Excesso (+6h)</span>`
                 : (v.presente 
-                  ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEDD00]/20 text-[#FEDD00] border border-[#FEDD00] font-montserrat">Presente</span>`
-                  : `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/40 text-slate-200 border border-white/20 font-montserrat">Ausente</span>`
+                  ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Presente</span>`
+                  : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">Ausente</span>`
                 )
               }
             </td>
-            <td class="p-4 font-mono text-xs text-slate-200">${v.entrada || '--:--'}</td>
-            <td class="p-4 font-mono text-xs text-slate-200">${v.Saida || '--:--'}</td>
+            <td class="p-4 font-mono text-xs text-slate-600">${v.entrada || '--:--'}</td>
+            <td class="p-4 font-mono text-xs text-slate-600">${v.Saida || '--:--'}</td>
             <td class="p-4">
-              <div class="text-xs font-bold ${alertaExcesso6h ? 'text-[#FEDD00]' : 'text-white'} font-montserrat">
+              <div class="text-xs font-bold text-slate-900">
                 ${formatarMinutosParaHorasMin(minutosTotais)}
               </div>
             </td>
             <td class="p-4 text-right space-x-2">
-              <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${v.presente ? 'bg-amber-500/30 text-amber-300 hover:bg-amber-500/50 border border-amber-300' : 'bg-[#FEDD00] text-slate-950 hover:bg-[#e5c700] border border-[#FEDD00]'} transition font-montserrat shadow-sm">
+              <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${v.presente ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' : 'bg-[#0099ff] text-white hover:bg-blue-600'} transition shadow-sm">
                 ${v.presente ? 'Check-out' : 'Check-in'}
               </button>
-              <button onclick="excluirVoluntario('${v.id}')" class="text-slate-300 hover:text-rose-400 p-1.5 transition">
-                ✕
-              </button>
+              ${eCoordenador ? `
+                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">
+                  ✕
+                </button>
+              ` : ''}
             </td>
           `;
           corpo.appendChild(tr);
         }
       });
 
-      const ausentes = total - presentes;
-      const pct = total > 0 ? Math.round((presentes / total) * 100) : 0;
+      const pctPresentes = listaConfirmados.length > 0 ? Math.round((presentes / listaConfirmados.length) * 100) : 0;
+      const pctSetor = listaConfirmados.length > 0 ? Math.round((totalSetorDefinido / listaConfirmados.length) * 100) : 0;
 
-      document.getElementById('metricTotal').innerText = total;
+      document.getElementById('metricTotalSelecionados').innerText = totalSelecionados;
+      document.getElementById('metricSetorDefinido').innerText = totalSetorDefinido;
+      document.getElementById('metricSetorPct').innerText = `${pctSetor}%`;
       document.getElementById('metricPresentes').innerText = presentes;
-      document.getElementById('metricPorcentagem').innerText = `${pct}%`;
-      document.getElementById('metricAusentes').innerText = ausentes;
-      document.getElementById('metricConcluidos').innerText = concluidos;
+      document.getElementById('metricPorcentagem').innerText = `${pctPresentes}%`;
+      document.getElementById('metricConcluidos').innerText = concluidosMeta;
 
-      atualizarGraficoAreas(lista);
+      document.getElementById('txtMetaHorasTitulo').innerText = metaHorasConfigurada;
+      document.getElementById('txtMetaHorasSub').innerText = metaHorasConfigurada;
+
+      atualizarGraficoAreas(listaConfirmados);
     };
 
     function processarPontoKiosk(e) {
@@ -771,19 +1445,21 @@
       if (!termo) return;
 
       const voluntario = window.voluntarios.find(v => 
-        limparTexto(v.qrcode) === termo ||
-        limparTexto(v.cpf) === termo ||
-        limparTexto(v.nome) === termo
+        v.confirmado && (
+          limparTexto(v.qrcode) === termo ||
+          limparTexto(v.email) === termo ||
+          limparTexto(v.nome) === termo
+        )
       );
 
       if (voluntario) {
         alternarPonto(voluntario.id);
-        msg.className = "text-xs min-h-[16px] font-bold text-[#FEDD00]";
-        msg.innerText = `✓ Ponto registrado para ${voluntario.nome} (${voluntario.presente ? 'Check-in' : 'Check-out'})`;
+        msg.className = "text-xs font-bold text-emerald-600";
+        msg.innerText = `✓ Ponto registrado para ${voluntario.nome}`;
         input.value = '';
       } else {
-        msg.className = "text-xs min-h-[16px] font-bold text-rose-300";
-        msg.innerText = `✗ Nenhum voluntário localizado com o código: "${input.value.trim()}"`;
+        msg.className = "text-xs font-bold text-rose-600";
+        msg.innerText = `✗ Nenhum voluntário confirmado localizado!`;
       }
 
       setTimeout(() => { msg.innerText = ''; }, 4000);
@@ -802,21 +1478,23 @@
         v.presente = false;
         v.Saida = horaFormatada;
         const minutosTurno = calcularMinutosDecorridos(v.entrada);
-        v.minutosAcumulados = (Number(v.minutosAcumulados) || 0) + (minutosTurno > 0 ? minutosTurno : 240);
+        v.minutosAcumulados = (Number(v.minutosAcumulados) || 0) + minutosTurno;
       }
 
       window.salvarNuvem();
     }
 
     function excluirVoluntario(id) {
-      if (confirm("Tem certeza que deseja remover este voluntário do banco em nuvem?")) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+      if (confirm("Tem certeza que deseja remover este voluntário?")) {
         window.voluntarios = window.voluntarios.filter(v => v.id !== id);
         window.salvarNuvem();
       }
     }
 
     function limparTodosDados() {
-      if (confirm("ATENÇÃO: Isto apagará TODOS os voluntários do banco em nuvem. Deseja continuar?")) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+      if (confirm("ATENÇÃO: Apagar TODOS os voluntários da nuvem?")) {
         window.voluntarios = [];
         window.salvarNuvem();
       }
@@ -842,27 +1520,38 @@
     }
 
     function abrirModalNovoVoluntario() {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+
+      const areaSel = document.getElementById('novoAreaSelect');
+      const turnoSel = document.getElementById('novoTurnoSelect');
+
+      if (areaSel) areaSel.innerHTML = `<option value="">Selecionar Palco/Área...</option>` + (window.setupEvento.palcos || []).map(p => `<option value="${p}">${p}</option>`).join('');
+      if (turnoSel) turnoSel.innerHTML = `<option value="">Selecionar Turno...</option>` + (window.setupEvento.turnos || []).map(t => `<option value="${t.id}">${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
+
       document.getElementById('modalNovoVoluntario').classList.remove('hidden');
     }
+
     function fecharModalNovoVoluntario() {
       document.getElementById('modalNovoVoluntario').classList.add('hidden');
     }
 
     function salvarNovoVoluntario(e) {
       e.preventDefault();
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+
       const nome = document.getElementById('novoNome').value;
-      const cpf = document.getElementById('novoCPF').value;
+      const email = document.getElementById('novoEmail').value;
       const qrcode = document.getElementById('novoQRCode').value || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
-      const area = document.getElementById('novoArea').value;
-      const turno = document.getElementById('novoTurno').value;
+      const confirmado = document.getElementById('novoConfirmado').checked;
 
       window.voluntarios.push({
         id: Date.now().toString(),
         qrcode: qrcode,
         nome: nome,
-        cpf: cpf,
-        area: area || 'Geral',
-        turno: turno,
+        email: email || '',
+        confirmado: confirmado,
+        area: 'Não Definido',
+        turno: '',
         presente: false,
         entrada: '--:--',
         Saida: '--:--',
@@ -875,6 +1564,8 @@
     }
 
     function importarExcel(e) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+
       const file = e.target.files[0];
       if (!file) return;
 
@@ -893,9 +1584,10 @@
               id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
               qrcode: row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
               nome: nome,
-              cpf: row['CPF'] || row['cpf'] || '000.000.000-00',
-              area: row['Área / Palco'] || row['Area'] || row['Área'] || 'Geral',
-              turno: row['Turno'] || 'Manhã',
+              email: row['Email'] || row['EMAIL'] || row['E-mail'] || row['email'] || '',
+              confirmado: false,
+              area: 'Não Definido',
+              turno: '',
               presente: false,
               entrada: '--:--',
               Saida: '--:--',
@@ -906,16 +1598,16 @@
         });
 
         window.salvarNuvem();
-        alert(`${novos} voluntários importados e sincronizados na nuvem!`);
+        alert(`${novos} voluntários importados para a base! Marque o check de presença na reunião para ativá-los.`);
       };
       reader.readAsArrayBuffer(file);
     }
 
     function baixarModeloExcel() {
       const modelo = [
-        ["Nome", "CPF", "QRCODE", "Área / Palco", "Turno"],
-        ["João Silva", "123.456.789-00", "4e-6123699472", "Palco Principal", "Manhã"],
-        ["Maria Santos", "987.654.321-11", "4e-6135589499", "Credenciamento", "Noite"]
+        ["Nome", "Email", "QRCODE"],
+        ["João Silva", "joao@email.com", "4e-6123699472"],
+        ["Maria Santos", "maria@email.com", "4e-6135589499"]
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(modelo);
@@ -925,16 +1617,21 @@
     }
 
     function exportarExcel() {
+      const turnosSetup = window.setupEvento.turnos || [];
       const dados = (window.voluntarios || []).map(v => {
         const minTurno = v.presente ? calcularMinutosDecorridos(v.entrada) : 0;
         const totalMin = (v.minutosAcumulados || 0) + minTurno;
+        const tObj = turnosSetup.find(t => t.id === v.turno);
+
         return {
           "Nome": v.nome,
-          "CPF": v.cpf,
+          "E-mail": v.email || '',
           "QRCODE": v.qrcode || '',
-          "Área": v.area || 'Geral',
-          "Turno": v.turno || 'Integral',
-          "Status": v.presente ? "Presente" : "Ausente",
+          "Confirmado Reunião": v.confirmado ? "Sim" : "Não",
+          "Área": v.area || 'Não Definido',
+          "Turno": v.turno || 'Pendente',
+          "Horário Previsto": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--',
+          "Status no Evento": v.presente ? "Presente" : "Ausente",
           "Entrada": v.entrada,
           "Saída": v.Saida,
           "Tempo Total": formatarMinutosParaHorasMin(totalMin)
