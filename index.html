@@ -7,26 +7,19 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   
-  <!-- SUPORTE A APP WEB / PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
   
-  <title>Campus Party Brasil - Controle de Voluntários</title>
+  <title>Campus Party Brasil - Gestão de Voluntários</title>
 
-  <!-- Favicon com o ícone circular CP -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230099ff'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='900' font-size='52'>CP</text></svg>">
+  <link rel="icon" type="image/png" href="favicon (2).png">
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS para Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- HTML5 QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <!-- Chart.js para o Gráfico de Distribuição por Área -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- Firebase App, Realtime Database e Firebase Auth SDKs (v10) -->
   <script type="module">
     import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -73,8 +66,8 @@
         window.voluntarios = Array.isArray(data) ? data : Object.values(data);
       } else {
         window.voluntarios = [
-          { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', email: 'lucas.silva@email.com', confirmado: true, area: 'Palco Principal', turno: 'Manhã', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 720 },
-          { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', email: 'mariana.costa@email.com', confirmado: true, area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 375 }
+          { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', email: 'lucas.silva@email.com', genero: 'Masculino', ingles: 'C1 - Avançado', turnoInteresse: 'Manhã - Tarde (10h às 17h)', habilidades: 'Atendimento, Suporte Técnico', confirmado: true, area: 'Palco Principal', turno: 'Manhã', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 720 },
+          { id: '2', qrcode: '4e-6135589499', nome: 'Mariana Costa', email: 'mariana.costa@email.com', genero: 'Feminino', ingles: 'B1 - Intermediário', turnoInteresse: 'Noite (15h30 às 22h30)', habilidades: 'Credenciamento, Redes Sociais', confirmado: true, area: 'Credenciamento', turno: 'Tarde', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 375 }
         ];
       }
       if (typeof window.renderizarListaVoluntarios === 'function') window.renderizarListaVoluntarios();
@@ -153,18 +146,19 @@
       const btn = document.getElementById('btnSubmitLogin');
 
       msg.classList.add('hidden');
-      btn.innerText = "VERIFICANDO...";
+      btn.innerText = "Verificando...";
       btn.disabled = true;
 
       signInWithEmailAndPassword(auth, email, pass)
         .then(() => {
-          btn.innerText = "ENTRAR NA PLATAFORMA";
+          btn.innerText = "Entrar";
           btn.disabled = false;
         })
-        .catch((error) => {
-          btn.innerText = "ENTRAR NA PLATAFORMA";
+        .catch(() => {
+          btn.innerText = "Entrar";
           btn.disabled = false;
           msg.classList.remove('hidden');
+          msg.className = "text-xs font-semibold text-rose-600 text-center";
           msg.innerText = "⚠️ E-mail ou senha incorretos!";
         });
     };
@@ -269,73 +263,73 @@
 <body class="h-screen w-screen flex antialiased bg-slate-100 overflow-hidden">
 
   <!-- TELA DE LOGIN -->
-  <div id="telaLogin" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-    <div class="bg-white border border-slate-200 max-w-md w-full rounded-2xl p-8 shadow-2xl space-y-6">
-      <div class="text-center space-y-3">
-        <div class="w-16 h-16 bg-[#0099ff] rounded-2xl mx-auto flex items-center justify-center p-1 shadow-lg shadow-[#0099ff]/30">
-          <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
-        </div>
-        <div>
-          <h2 class="font-extrabold text-2xl text-slate-900 tracking-tight">Campus Party</h2>
-          <p class="text-xs text-[#0099ff] font-semibold uppercase tracking-wider mt-1">Gestão de Voluntários</p>
-        </div>
+  <div id="telaLogin" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-[#0d1526] via-[#131f3a] to-[#1a2b56]">
+    <div class="bg-white max-w-[400px] w-full rounded-2xl overflow-hidden shadow-2xl">
+      
+      <!-- Cabeçalho Azul com a Logo Sutilmente Maior -->
+      <div class="bg-gradient-to-r from-[#1d5bd6] to-[#1a4db8] px-7 py-9 flex items-center justify-center">
+        <img src="Palestrante CP (7).png" alt="Campus Party Voluntários" class="w-full max-w-[265px] h-auto object-contain">
       </div>
 
-      <form id="formLogin" onsubmit="efetuarLogin(event)" class="space-y-4">
-        <div>
-          <label class="text-xs font-semibold text-slate-700 block mb-1">E-mail</label>
-          <input type="email" id="loginUsuario" required placeholder="seu.email@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm">
-        </div>
+      <!-- Corpo do Formulário -->
+      <div class="p-7 sm:p-8 space-y-5">
+        <h2 class="text-lg font-bold text-slate-900">Fazer Login</h2>
 
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="text-xs font-semibold text-slate-700">Senha</label>
-            <button type="button" onclick="enviarPrimeiroAcessoEmail()" class="text-xs font-semibold text-[#0099ff] hover:underline">
-              Primeiro acesso / Esqueci a senha
+        <form id="formLogin" onsubmit="efetuarLogin(event)" class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-700 block mb-1.5">Email</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+              </span>
+              <input type="email" id="loginUsuario" required placeholder="seu@email.com" class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1d5bd6] focus:border-transparent text-sm transition">
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-slate-700 block mb-1.5">Senha</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              </span>
+              <input type="password" id="loginSenha" placeholder="••••••••" class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1d5bd6] focus:border-transparent text-sm transition">
+            </div>
+          </div>
+
+          <p id="msgErroLogin" class="text-xs font-semibold min-h-[16px] text-center hidden"></p>
+
+          <button type="submit" id="btnSubmitLogin" class="w-full bg-[#1d63ed] hover:bg-[#1652c9] text-white font-semibold py-2.5 rounded-xl transition shadow-md shadow-[#1d63ed]/25 text-sm">
+            Entrar
+          </button>
+        </form>
+
+        <div class="text-center pt-1">
+          <p class="text-xs text-slate-500">
+            Recebeu acesso e ainda não tem senha?
+            <button type="button" onclick="enviarPrimeiroAcessoEmail()" class="font-semibold text-[#1d63ed] hover:underline ml-0.5">
+              Primeiro acesso
             </button>
-          </div>
-          <div class="relative">
-            <input type="password" id="loginSenha" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 pl-4 pr-10 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm">
-            <button type="button" onclick="alternarVisibilidadeSenha()" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 text-xs">👁️</button>
-          </div>
+          </p>
         </div>
-
-        <p id="msgErroLogin" class="text-xs font-semibold min-h-[16px] text-center hidden"></p>
-
-        <button type="submit" id="btnSubmitLogin" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-[#0099ff]/25 text-sm">
-          ENTRAR NA PLATAFORMA
-        </button>
-      </form>
+      </div>
     </div>
   </div>
 
   <!-- CONTAINER DA APLICAÇÃO -->
   <div id="appConteudo" class="hidden h-screen w-screen flex flex-col md:flex-row overflow-hidden relative">
 
-    <!-- OVERLAY ESCURO PARA CELULAR -->
     <div id="sidebarOverlay" onclick="alternarSidebarMobile()" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden"></div>
 
-    <!-- BARRA LATERAL (RESPONSIVA: GAVETA NO MOBILE, FIXA NO DESKTOP) -->
-    <aside id="sidebarMenu" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-2xl md:shadow-xl h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
+    <!-- SIDEBAR COM LARGURA SUTILMENTE REDUZIDA (w-60) -->
+    <aside id="sidebarMenu" class="fixed md:static inset-y-0 left-0 z-40 w-60 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-2xl md:shadow-xl h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
       
       <div class="space-y-6">
-        <div class="flex items-center justify-between border-b border-slate-800 px-1 py-2">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-[#0099ff] rounded-xl flex items-center justify-center p-0.5 shadow-md shrink-0">
-              <img src="Palestrante CP (4).png" alt="Campus Party Logo" class="w-full h-full object-contain">
-            </div>
-            <div class="leading-tight">
-              <h1 class="font-extrabold text-white text-sm tracking-tight">Campus Party</h1>
-              <p class="text-[9px] text-[#0099ff] font-bold uppercase tracking-wider">VOLUNTÁRIOS</p>
-            </div>
-          </div>
-          <!-- Botão fechar no mobile -->
-          <button onclick="alternarSidebarMobile()" class="md:hidden text-slate-400 hover:text-white p-1">
-            ✕
-          </button>
+        <!-- LOGO CENTRALIZADA NA SIDEBAR -->
+        <div class="relative flex items-center justify-center border-b border-slate-800 py-3 px-2">
+          <img src="Palestrante CP (7).png" alt="Campus Party Voluntários" class="w-full max-w-[175px] h-auto object-contain">
+          <button onclick="alternarSidebarMobile()" class="md:hidden absolute right-1 top-1 text-slate-400 hover:text-white p-1">✕</button>
         </div>
 
-        <!-- 4 ABAS DE NAVEGAÇÃO -->
         <nav class="space-y-1">
           <button id="navVoluntarios" onclick="navegarPara('voluntarios')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition font-medium text-sm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -359,12 +353,9 @@
         </nav>
       </div>
 
-      <!-- Rodapé do Usuário Fixo -->
       <div class="border-t border-slate-800 pt-4 space-y-3">
         <div class="flex items-center gap-3 px-1">
-          <div id="sidebarUserInitial" class="w-9 h-9 rounded-full bg-[#0099ff] text-white font-bold flex items-center justify-center text-sm shadow shrink-0">
-            U
-          </div>
+          <div id="sidebarUserInitial" class="w-9 h-9 rounded-full bg-[#0099ff] text-white font-bold flex items-center justify-center text-sm shadow shrink-0">U</div>
           <div class="overflow-hidden">
             <p id="sidebarUserName" class="text-xs font-bold text-white truncate">Usuário</p>
             <p id="sidebarUserEmail" class="text-[11px] text-slate-400 truncate">usuario@campus.com</p>
@@ -381,16 +372,12 @@
 
     </aside>
 
-    <!-- ÁREA DE CONTEÚDO PRINCIPAL (RESPONSIVA) -->
     <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
-      <!-- TOPBAR SUPERIOR COM BOTÃO MENU HAMBÚRGUER -->
       <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
         <div class="flex items-center gap-3 w-full md:w-auto justify-between">
           <div class="flex items-center gap-3">
-            <button onclick="alternarSidebarMobile()" class="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-800 p-2 rounded-xl border border-slate-200 font-bold text-lg">
-              ☰
-            </button>
+            <button onclick="alternarSidebarMobile()" class="md:hidden bg-slate-100 hover:bg-slate-200 text-slate-800 p-2 rounded-xl border border-slate-200 font-bold text-lg">☰</button>
             <div>
               <h2 id="tituloPaginaHeader" class="text-lg md:text-2xl font-bold text-slate-900 leading-tight">Dashboard e Presença ao Vivo</h2>
               <p id="subtituloPaginaHeader" class="text-[11px] md:text-xs text-slate-500 hidden sm:block">Controle de presenças, métricas e check-in/out durante o evento</p>
@@ -399,19 +386,13 @@
         </div>
 
         <div id="containerBotoesTopHeader" class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <button onclick="baixarModeloExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">
-            📥 Modelo
-          </button>
+          <button onclick="baixarModeloExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">📥 Modelo</button>
           <label class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 cursor-pointer text-center">
             📤 Importar
             <input type="file" id="inputFileExcel" accept=".xlsx, .csv" class="hidden" onchange="importarExcel(event)">
           </label>
-          <button onclick="exportarExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">
-            📊 Exportar
-          </button>
-          <button onclick="abrirModalNovoVoluntario()" class="w-full md:w-auto bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 text-center">
-            + Novo Voluntário
-          </button>
+          <button onclick="exportarExcel()" class="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition border border-slate-300 text-center">📊 Exportar</button>
+          <button onclick="abrirModalNovoVoluntario()" class="w-full md:w-auto bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 text-center">+ Novo Voluntário</button>
         </div>
       </header>
 
@@ -451,9 +432,9 @@
             </div>
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <input type="text" id="filtroVoluntariosBase" oninput="renderizarListaVoluntarios()" placeholder="Buscar candidato..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <input type="text" id="filtroVoluntariosBase" oninput="renderizarListaVoluntarios()" placeholder="Buscar por nome, e-mail..." class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3.5 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               
-              <button onclick="exportarRelatorioReuniao()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-md shadow-[#0099ff]/20 flex items-center justify-center gap-1.5">
+              <button onclick="exportarRelatorioReuniao()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
                 📋 Exportar Reunião (.xlsx)
               </button>
 
@@ -464,12 +445,12 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse min-w-[600px]">
+            <table class="w-full text-left border-collapse min-w-[750px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                   <th class="p-4 text-center w-24">Confirmar?</th>
                   <th class="p-4">Voluntário</th>
-                  <th class="p-4">E-mail</th>
+                  <th class="p-4">Perfil & Habilidades</th>
                   <th class="p-4">QR Code</th>
                   <th class="p-4">Status da Reunião</th>
                   <th class="p-4 text-right col-admin-only">Ação</th>
@@ -483,35 +464,55 @@
 
       <!-- ABA 2: ESCALAS & TURNOS -->
       <main id="secaoEscalas" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 hidden">
-        <section id="cardsResumoTurnos" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <!-- Renderizado via JS -->
-        </section>
+        <section id="cardsResumoTurnos" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"></section>
 
         <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <div class="flex items-center gap-3">
-                <h3 class="text-base font-bold text-slate-900">Planejamento da Escala da Equipe</h3>
-              </div>
-              <p class="text-xs text-slate-500 mt-0.5">Exibindo apenas voluntários confirmados</p>
+              <h3 class="text-base font-bold text-slate-900">Planejamento da Escala da Equipe</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Analise as habilidades e idioma para escalar no palco ideal</p>
             </div>
 
-            <div class="flex items-center gap-2">
-              <button onclick="salvarTodasEscalasManual()" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-md flex items-center justify-center gap-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="filtroEscalaGenero" onchange="renderizarEscalas()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todos">Todos Gêneros</option>
+                <option value="Feminino">Feminino</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Outro">Outro</option>
+                <option value="Não Informar">Não Informar</option>
+              </select>
+
+              <select id="filtroEscalaIngles" onchange="renderizarEscalas()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todos">Todos Idiomas</option>
+                <option value="A1 - Iniciante">A1 - Iniciante</option>
+                <option value="A2 - Básico">A2 - Básico</option>
+                <option value="B1 - Intermediário">B1 - Intermediário</option>
+                <option value="B2 - Independente">B2 - Independente</option>
+                <option value="C1 - Avançado">C1 - Avançado</option>
+                <option value="C2 - Domínio Pleno">C2 - Domínio Pleno</option>
+              </select>
+
+              <select id="filtroEscalaTurnoDesejado" onchange="renderizarEscalas()" class="bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                <option value="todos">Todos Turnos Desejados</option>
+                <option value="Manhã - Tarde (10h às 17h)">Manhã - Tarde (10h às 17h)</option>
+                <option value="Noite (15h30 às 22h30)">Noite (15h30 às 22h30)</option>
+              </select>
+
+              <button onclick="salvarTodasEscalasManual()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition shadow-md flex items-center gap-1.5">
                 💾 Salvar
               </button>
-              <button onclick="exportarEscalaOficial()" class="flex-1 md:flex-initial bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">
+              <button onclick="exportarEscalaOficial()" class="bg-[#0099ff] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md">
                 📋 Exportar (.xlsx)
               </button>
             </div>
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left border-collapse min-w-[650px]">
+            <table class="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                   <th class="p-4">Voluntário</th>
-                  <th class="p-4">E-mail</th>
+                  <th class="p-4">Requisitos & Habilidades</th>
                   <th class="p-4">Definir Área / Palco</th>
                   <th class="p-4">Definir Turno de Trabalho</th>
                 </tr>
@@ -532,7 +533,7 @@
               <p id="metricTotalSelecionados" class="text-xl md:text-3xl font-extrabold text-slate-900 mt-1">0</p>
             </div>
             <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-blue-50 text-[#0099ff] flex items-center justify-center shrink-0">
-              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H2v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
             </div>
           </div>
 
@@ -588,9 +589,7 @@
               <p class="text-xs text-slate-500 mb-4">Digite E-mail/Nome ou leia o QR Code.</p>
 
               <form id="formKiosk" onsubmit="processarPontoKiosk(event)" class="space-y-3">
-                <div>
-                  <input type="text" id="inputKiosk" placeholder="E-mail, Nome ou QR Code..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm font-mono">
-                </div>
+                <input type="text" id="inputKiosk" placeholder="E-mail, Nome ou QR Code..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0099ff] text-sm font-mono">
                 <div class="flex gap-2">
                   <button type="submit" class="flex-1 bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md">
                     REGISTRAR PONTO
@@ -650,13 +649,11 @@
       <!-- ABA 4: SETUP / CONFIGURAÇÕES -->
       <main id="secaoSetup" class="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 hidden">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          
           <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Gestão de Acessos</h3>
               <p class="text-xs text-slate-500">Cadastre operadores e coordenadores</p>
             </div>
-
             <form onsubmit="adicionarUsuarioOperador(event)" class="space-y-3">
               <input type="text" id="novoUsuarioNome" required placeholder="Nome completo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
               <input type="email" id="novoUsuarioEmail" required placeholder="operador@campus.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
@@ -665,65 +662,50 @@
                   <option value="operador">Operador</option>
                   <option value="coordenador">Coordenador</option>
                 </select>
-                <button type="submit" id="btnSalvarUsuarioSetup" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
-                  + Salvar
-                </button>
+                <button type="submit" id="btnSalvarUsuarioSetup" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">+ Salvar</button>
               </div>
             </form>
-
             <ul id="listaUsuariosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
 
           <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Carga Horária</h3>
-              <p class="text-xs text-slate-500">Defina a meta de horas do voluntário</p>
+              <p class="text-xs text-slate-500">Defina a meta de horas</p>
             </div>
-
             <form onsubmit="salvarMetaHorasSetup(event)" class="space-y-3">
               <input type="number" id="inputMetaHorasSetup" min="1" max="100" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition">
-                💾 Salvar Meta
-              </button>
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition">💾 Salvar Meta</button>
             </form>
           </section>
 
           <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Palcos e Áreas</h3>
-              <p class="text-xs text-slate-500">Cadastre os palcos disponíveis</p>
+              <p class="text-xs text-slate-500">Cadastre os palcos</p>
             </div>
-
             <form onsubmit="adicionarPalcoSetup(event)" class="flex gap-2">
               <input type="text" id="novoPalcoSetup" required placeholder="Novo palco" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">
-                + Adicionar
-              </button>
+              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">+ Adicionar</button>
             </form>
-
             <ul id="listaPalcosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
 
           <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Turnos de Trabalho</h3>
-              <p class="text-xs text-slate-500">Configure os horários dos turnos</p>
+              <p class="text-xs text-slate-500">Configure os horários</p>
             </div>
-
             <form onsubmit="adicionarTurnoSetup(event)" class="space-y-3">
               <div class="grid grid-cols-3 gap-2">
                 <input type="text" id="novoTurnoNome" required placeholder="Nome" class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
                 <input type="time" id="novoTurnoInicio" required class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
                 <input type="time" id="novoTurnoFim" required class="bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900">
               </div>
-              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition">
-                + Adicionar Turno
-              </button>
+              <button type="submit" class="w-full bg-[#0099ff] hover:bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition">+ Adicionar Turno</button>
             </form>
-
             <ul id="listaTurnosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
-
         </div>
       </main>
 
@@ -748,7 +730,7 @@
 
   <!-- MODAL: NOVO VOLUNTÁRIO -->
   <div id="modalNovoVoluntario" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
         <h3 class="font-bold text-slate-900 text-base">Cadastrar Voluntário</h3>
         <button onclick="fecharModalNovoVoluntario()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">✕</button>
@@ -771,6 +753,41 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-700 block mb-1">Gênero</label>
+            <select id="novoGenero" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <option value="Feminino">Feminino</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Outro">Outro</option>
+              <option value="Não Informar">Não Informar</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-700 block mb-1">Nível de Inglês</label>
+            <select id="novoIngles" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <option value="A1 - Iniciante">A1 - Iniciante</option>
+              <option value="A2 - Básico">A2 - Básico</option>
+              <option value="B1 - Intermediário">B1 - Intermediário</option>
+              <option value="B2 - Independente">B2 - Independente</option>
+              <option value="C1 - Avançado">C1 - Avançado</option>
+              <option value="C2 - Domínio Pleno">C2 - Domínio Pleno</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-700 block mb-1">Turno Desejado</label>
+            <select id="novoTurnoInteresse" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <option value="Manhã - Tarde (10h às 17h)">Manhã - Tarde (10h às 17h)</option>
+              <option value="Noite (15h30 às 22h30)">Noite (15h30 às 22h30)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1">Habilidades / Experiências</label>
+          <input type="text" id="novoHabilidades" placeholder="ex: Credenciamento, Suporte Técnico, Liderança" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+        </div>
+
         <div class="pt-2">
           <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
             <input type="checkbox" id="novoConfirmado" class="w-4 h-4 text-[#0099ff] rounded focus:ring-blue-500">
@@ -790,11 +807,9 @@
     let html5QrcodeScanner = null;
     let chartInstance = null;
 
-    // CONTROLE DE ABRIR/FECHAR MENU LATERAL NO CELULAR
     window.alternarSidebarMobile = function() {
       const sidebar = document.getElementById('sidebarMenu');
       const overlay = document.getElementById('sidebarOverlay');
-
       if (sidebar.classList.contains('-translate-x-full')) {
         sidebar.classList.remove('-translate-x-full');
         overlay.classList.remove('hidden');
@@ -804,10 +819,8 @@
       }
     };
 
-    // CONTROLE DE NÍVEIS DE ACESSO NA INTERFACE
     window.aplicarPermissoesInterface = function() {
       const eCoordenador = (window.usuarioLogadoRole === 'coordenador');
-
       const navVoluntarios = document.getElementById('navVoluntarios');
       const navEscalas = document.getElementById('navEscalas');
       const navSetup = document.getElementById('navSetup');
@@ -818,7 +831,6 @@
         if (navEscalas) navEscalas.style.display = 'none';
         if (navSetup) navSetup.style.display = 'none';
         if (containerBotoesHeader) containerBotoesHeader.style.display = 'none';
-
         window.navegarPara('dashboard');
       } else {
         if (navVoluntarios) navVoluntarios.style.display = 'flex';
@@ -831,7 +843,6 @@
     window.renderizarUsuariosSetup = function() {
       const listaUl = document.getElementById('listaUsuariosSetup');
       if (!listaUl) return;
-
       listaUl.innerHTML = '';
       const usuarios = window.listaUsuarios || {};
 
@@ -853,11 +864,9 @@
       });
     };
 
-    // NAVEGAÇÃO DE ABAS COM FECHAMENTO AUTOMÁTICO DO MENU NO MOBILE
     window.navegarPara = function(aba) {
       const sidebar = document.getElementById('sidebarMenu');
       const overlay = document.getElementById('sidebarOverlay');
-
       if (window.innerWidth < 768) {
         sidebar.classList.add('-translate-x-full');
         overlay.classList.add('hidden');
@@ -872,7 +881,6 @@
       const navEscalas = document.getElementById('navEscalas');
       const navDashboard = document.getElementById('navDashboard');
       const navSetup = document.getElementById('navSetup');
-
       const tituloHeader = document.getElementById('tituloPaginaHeader');
 
       const estiloAtivo = "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#0099ff] text-white font-semibold text-sm shadow-md shadow-[#0099ff]/30 transition";
@@ -896,7 +904,7 @@
       } else if (aba === 'escalas' && window.usuarioLogadoRole === 'coordenador') {
         secEscalas.classList.remove('hidden');
         if (navEscalas) navEscalas.className = estiloAtivo;
-        tituloHeader.innerText = "Escalas & Turnos";
+        tituloHeader.innerText = "Escalas & Turnos da Equipe";
         renderizarEscalas();
       } else if (aba === 'dashboard') {
         secDashboard.classList.remove('hidden');
@@ -926,11 +934,6 @@
       document.getElementById('loginSenha').value = '';
     }
 
-    function alternarVisibilidadeSenha() {
-      const input = document.getElementById('loginSenha');
-      input.type = input.type === 'password' ? 'text' : 'password';
-    }
-
     function limparTexto(txt) {
       return String(txt || '').trim().toLowerCase().replace(/[\s\r\n]/g, '');
     }
@@ -953,7 +956,6 @@
       const agora = new Date();
       let diffMs = agora - entradaObj;
       if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
-
       return Math.floor(diffMs / (1000 * 60));
     }
 
@@ -992,18 +994,32 @@
         const atendeFiltro = !filtro || 
                              limparTexto(v.nome).includes(filtro) || 
                              limparTexto(v.email).includes(filtro) || 
-                             limparTexto(v.qrcode).includes(filtro);
+                             limparTexto(v.qrcode).includes(filtro) ||
+                             limparTexto(v.habilidades).includes(filtro);
 
         if (atendeFiltro) {
           const tr = document.createElement('tr');
           tr.className = `hover:bg-slate-50/80 transition ${v.confirmado ? 'bg-emerald-50/30' : ''}`;
 
+          const isFluente = v.ingles?.includes('C1') || v.ingles?.includes('C2');
+          const bgIngles = isFluente ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700';
+
           tr.innerHTML = `
             <td class="p-4 text-center">
               <input type="checkbox" ${v.confirmado ? 'checked' : ''} onchange="alternarConfirmacaoVoluntario('${v.id}')" class="w-5 h-5 text-[#0099ff] rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
             </td>
-            <td class="p-4 font-bold text-slate-900">${v.nome}</td>
-            <td class="p-4 text-xs font-mono text-slate-500">${v.email || 'Sem e-mail'}</td>
+            <td class="p-4 font-bold text-slate-900">
+              <div>${v.nome}</div>
+              <div class="text-xs text-slate-400 font-mono font-normal">${v.email || 'Sem e-mail'}</div>
+            </td>
+            <td class="p-4">
+              <div class="flex flex-wrap gap-1 text-[10px]">
+                <span class="px-2 py-0.5 rounded font-bold ${bgIngles}">${v.ingles || 'A1 - Iniciante'}</span>
+                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 Pref: ${v.turnoInteresse || 'Manhã'}</span>
+                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${v.genero}</span>` : ''}
+              </div>
+              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${v.habilidades}</div>` : ''}
+            </td>
             <td class="p-4">
               <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-slate-100 text-slate-700 font-medium border border-slate-200">
                 ${v.qrcode || 'N/A'}
@@ -1017,9 +1033,7 @@
             </td>
             ${eCoordenador ? `
               <td class="p-4 text-right">
-                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">
-                  ✕
-                </button>
+                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
               </td>
             ` : ''}
           `;
@@ -1028,7 +1042,6 @@
       });
 
       const desistentes = total - confirmados;
-
       document.getElementById('metricBaseTotal').innerText = total;
       document.getElementById('metricBaseConfirmados').innerText = confirmados;
       document.getElementById('metricBaseDesistentes').innerText = desistentes;
@@ -1039,9 +1052,12 @@
       const dados = lista.map(v => ({
         "Nome do Voluntário": v.nome,
         "E-mail": v.email || 'Não informado',
+        "Gênero": v.genero || '',
+        "Nível de Inglês": v.ingles || '',
+        "Turno de Interesse": v.turnoInteresse || '',
+        "Habilidades": v.habilidades || '',
         "QR Code": v.qrcode || 'N/A',
-        "Compareceu à Reunião?": v.confirmado ? "SIM" : "NÃO",
-        "Status para Escala": v.confirmado ? "Liberado" : "Não Liberado"
+        "Compareceu à Reunião?": v.confirmado ? "SIM" : "NÃO"
       }));
 
       const ws = XLSX.utils.json_to_sheet(dados);
@@ -1053,7 +1069,6 @@
     window.alternarConfirmacaoVoluntario = function(id) {
       const v = window.voluntarios.find(item => item.id === id);
       if (!v) return;
-
       v.confirmado = !v.confirmado;
       window.salvarNuvem();
     };
@@ -1158,6 +1173,10 @@
       corpoEscalas.innerHTML = '';
       containerResumo.innerHTML = '';
 
+      const filtroGenero = document.getElementById('filtroEscalaGenero')?.value || 'todos';
+      const filtroIngles = document.getElementById('filtroEscalaIngles')?.value || 'todos';
+      const filtroTurnoDesejado = document.getElementById('filtroEscalaTurnoDesejado')?.value || 'todos';
+
       const listaConfirmados = (window.voluntarios || []).filter(v => v.confirmado);
       const palcosSetup = window.setupEvento.palcos || [];
       const turnosSetup = window.setupEvento.turnos || [];
@@ -1170,40 +1189,61 @@
       });
 
       turnosSetup.forEach(t => {
+        const qtd = contagemTurnos[t.id] || 0;
+        const textoVoluntario = qtd === 1 ? 'voluntário' : 'voluntários';
+
         const div = document.createElement('div');
         div.className = "bg-white p-4 rounded-2xl border border-slate-200 shadow-sm";
         div.innerHTML = `
           <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">${t.nome} (${t.inicio}-${t.fim})</p>
-          <p class="text-xl md:text-2xl font-extrabold text-[#0099ff] mt-1">${contagemTurnos[t.id] || 0} p.</p>
+          <p class="text-xl md:text-2xl font-extrabold text-[#0099ff] mt-1">${qtd} <span class="text-xs font-bold text-slate-600">${textoVoluntario}</span></p>
         `;
         containerResumo.appendChild(div);
       });
 
       listaConfirmados.forEach(v => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50/80 transition";
+        const atendeGenero = (filtroGenero === 'todos' || v.genero === filtroGenero);
+        const atendeIngles = (filtroIngles === 'todos' || v.ingles === filtroIngles);
+        const atendeTurnoDesejado = (filtroTurnoDesejado === 'todos' || v.turnoInteresse === filtroTurnoDesejado);
 
-        let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco...</option>` +
-          palcosSetup.map(p => `<option value="${p}" ${v.area === p ? 'selected' : ''}>${p}</option>`).join('');
+        if (atendeGenero && atendeIngles && atendeTurnoDesejado) {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-50/80 transition";
 
-        let turnosOptionsHtml = `<option value="" ${!v.turno ? 'selected' : ''}>Selecionar Turno...</option>` +
-          turnosSetup.map(t => `<option value="${t.id}" ${v.turno === t.id ? 'selected' : ''}>${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
+          let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco...</option>` +
+            palcosSetup.map(p => `<option value="${p}" ${v.area === p ? 'selected' : ''}>${p}</option>`).join('');
 
-        tr.innerHTML = `
-          <td class="p-4 font-bold text-slate-900">${v.nome}</td>
-          <td class="p-4 text-xs font-mono text-slate-500">${v.email || '--'}</td>
-          <td class="p-4">
-            <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              ${palcosOptionsHtml}
-            </select>
-          </td>
-          <td class="p-4">
-            <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              ${turnosOptionsHtml}
-            </select>
-          </td>
-        `;
-        corpoEscalas.appendChild(tr);
+          let turnosOptionsHtml = `<option value="" ${!v.turno ? 'selected' : ''}>Selecionar Turno...</option>` +
+            turnosSetup.map(t => `<option value="${t.id}" ${v.turno === t.id ? 'selected' : ''}>${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
+
+          const isFluente = v.ingles?.includes('C1') || v.ingles?.includes('C2');
+
+          tr.innerHTML = `
+            <td class="p-4 font-bold text-slate-900">
+              <div>${v.nome}</div>
+              <div class="text-xs text-slate-400 font-normal">${v.email || '--'}</div>
+            </td>
+            <td class="p-4">
+              <div class="flex flex-wrap gap-1 text-[10px]">
+                <span class="px-2 py-0.5 rounded font-bold ${isFluente ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${v.ingles || 'A1 - Iniciante'}</span>
+                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 ${v.turnoInteresse || 'Manhã'}</span>
+                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${v.genero}</span>` : ''}
+              </div>
+              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${v.habilidades}</div>` : ''}
+            </td>
+            <td class="p-4">
+              <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                ${palcosOptionsHtml}
+              </select>
+            </td>
+            <td class="p-4">
+              <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+                ${turnosOptionsHtml}
+              </select>
+            </td>
+          `;
+          corpoEscalas.appendChild(tr);
+        }
       });
     };
 
@@ -1234,10 +1274,13 @@
         return {
           "Nome": v.nome,
           "E-mail": v.email || '',
-          "QR Code": v.qrcode || '',
+          "Gênero": v.genero || '',
+          "Nível de Inglês": v.ingles || '',
+          "Turno de Interesse": v.turnoInteresse || '',
+          "Habilidades": v.habilidades || '',
           "Área / Palco": v.area || 'Não Definido',
-          "Turno": v.turno || 'Pendente',
-          "Horário": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--'
+          "Turno Escala": v.turno || 'Pendente',
+          "Horário Previsto": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--'
         };
       });
 
@@ -1384,9 +1427,7 @@
                 ${v.presente ? 'Check-out' : 'Check-in'}
               </button>
               ${eCoordenador ? `
-                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">
-                  ✕
-                </button>
+                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
               ` : ''}
             </td>
           `;
@@ -1475,7 +1516,7 @@
         document.getElementById('inputKiosk').value = qrCodeMessage;
         processarPontoKiosk();
         fecharModalCamera();
-      }, (error) => {});
+      }, () => {});
     }
 
     function fecharModalCamera() {
@@ -1501,6 +1542,10 @@
       const nome = document.getElementById('novoNome').value;
       const email = document.getElementById('novoEmail').value;
       const qrcode = document.getElementById('novoQRCode').value || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
+      const genero = document.getElementById('novoGenero').value;
+      const ingles = document.getElementById('novoIngles').value;
+      const turnoInteresse = document.getElementById('novoTurnoInteresse').value;
+      const habilidades = document.getElementById('novoHabilidades').value;
       const confirmado = document.getElementById('novoConfirmado').checked;
 
       window.voluntarios.push({
@@ -1508,6 +1553,10 @@
         qrcode: qrcode,
         nome: nome,
         email: email || '',
+        genero: genero,
+        ingles: ingles,
+        turnoInteresse: turnoInteresse,
+        habilidades: habilidades,
         confirmado: confirmado,
         area: 'Não Definido',
         turno: '',
@@ -1544,6 +1593,10 @@
               qrcode: row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
               nome: nome,
               email: row['Email'] || row['EMAIL'] || row['E-mail'] || row['email'] || '',
+              genero: row['Genero'] || row['Gênero'] || row['genero'] || 'Não Informar',
+              ingles: row['Ingles'] || row['Inglês'] || row['ingles'] || 'A1 - Iniciante',
+              turnoInteresse: row['TurnoDesejado'] || row['TurnoInteresse'] || row['Turno de Interesse'] || 'Manhã - Tarde (10h às 17h)',
+              habilidades: row['Habilidades'] || row['habilidades'] || '',
               confirmado: false,
               area: 'Não Definido',
               turno: '',
@@ -1564,9 +1617,9 @@
 
     function baixarModeloExcel() {
       const modelo = [
-        ["Nome", "Email", "QRCODE"],
-        ["João Silva", "joao@email.com", "4e-6123699472"],
-        ["Maria Santos", "maria@email.com", "4e-6135589499"]
+        ["Nome", "Email", "QRCODE", "Genero", "Ingles", "TurnoDesejado", "Habilidades"],
+        ["João Silva", "joao@email.com", "4e-6123699472", "Masculino", "C1 - Avançado", "Manhã - Tarde (10h às 17h)", "Atendimento, Suporte Técnico"],
+        ["Maria Santos", "maria@email.com", "4e-6135589499", "Feminino", "B1 - Intermediário", "Noite (15h30 às 22h30)", "Credenciamento, Redes Sociais"]
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(modelo);
@@ -1585,10 +1638,14 @@
         return {
           "Nome": v.nome,
           "E-mail": v.email || '',
+          "Gênero": v.genero || '',
+          "Inglês": v.ingles || '',
+          "Turno Desejado": v.turnoInteresse || '',
+          "Habilidades": v.habilidades || '',
           "QRCODE": v.qrcode || '',
           "Confirmado Reunião": v.confirmado ? "Sim" : "Não",
-          "Área": v.area || 'Não Definido',
-          "Turno": v.turno || 'Pendente',
+          "Área Escala": v.area || 'Não Definido',
+          "Turno Escala": v.turno || 'Pendente',
           "Horário Previsto": tObj ? `${tObj.inicio} - ${tObj.fim}` : '--',
           "Status": v.presente ? "Presente" : "Ausente",
           "Entrada": v.entrada,
@@ -1605,7 +1662,6 @@
 
     window.baixarModeloExcel = baixarModeloExcel;
     window.exportarExcel = exportarExcel;
-    window.alternarVisibilidadeSenha = alternarVisibilidadeSenha;
   </script>
 </body>
 </html>
