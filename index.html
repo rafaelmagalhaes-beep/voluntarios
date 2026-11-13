@@ -47,11 +47,19 @@
 
     window.voluntarios = [];
     window.listaUsuarios = {};
-    window.usuarioLogadoRole = 'coordenador';
+    window.usuarioLogadoRole = 'operador';
 
     window.setupEvento = {
       metaHoras: 12,
-      palcos: ['Palco Principal', 'Credenciamento', 'Arena Gamer', 'What\'s Next', 'Startups & Business', 'WSSupernova', 'Disrupção'],
+      palcos: [
+        { nome: 'Palco Principal', limite: 0 },
+        { nome: 'Credenciamento', limite: 0 },
+        { nome: 'Arena Gamer', limite: 0 },
+        { nome: 'What\'s Next', limite: 0 },
+        { nome: 'Startups & Business', limite: 0 },
+        { nome: 'WSSupernova', limite: 0 },
+        { nome: 'Disrupção', limite: 0 }
+      ],
       turnos: [
         { id: 'Manhã', nome: 'Manhã', inicio: '10:00', fim: '17:00' },
         { id: 'Tarde', nome: 'Tarde', inicio: '12:00', fim: '18:00' },
@@ -63,7 +71,7 @@
     onValue(dbRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        window.voluntarios = Array.isArray(data) ? data : Object.values(data);
+        window.voluntarios = Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean);
       } else {
         window.voluntarios = [
           { id: '1', qrcode: '4e-6123699472', nome: 'Lucas Silva', email: 'lucas.silva@email.com', genero: 'Masculino', ingles: 'C1 - Avançado', turnoInteresse: 'Manhã - Tarde (10h às 17h)', habilidades: 'Atendimento, Suporte Técnico', confirmado: true, area: 'Palco Principal', turno: 'Manhã', presente: false, entrada: '--:--', Saida: '--:--', minutosAcumulados: 720 },
@@ -90,7 +98,7 @@
 
     onValue(usuariosRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) window.listaUsuarios = data;
+      window.listaUsuarios = data || {};
       if (typeof window.renderizarUsuariosSetup === 'function') window.renderizarUsuariosSetup();
     });
 
@@ -129,6 +137,10 @@
               : "bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded text-[10px]";
           }
 
+          window.aplicarPermissoesInterface();
+          window.exibirPlataforma();
+        }).catch(() => {
+          window.usuarioLogadoRole = 'operador';
           window.aplicarPermissoesInterface();
           window.exibirPlataforma();
         });
@@ -189,8 +201,10 @@
 
     window.adicionarUsuarioOperador = function(e) {
       e.preventDefault();
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+
       const nome = document.getElementById('novoUsuarioNome').value.trim();
-      const email = document.getElementById('novoUsuarioEmail').value.trim();
+      const email = document.getElementById('novoUsuarioEmail').value.trim().toLowerCase();
       const role = document.getElementById('novoUsuarioRole').value;
       const btn = document.getElementById('btnSalvarUsuarioSetup');
 
@@ -198,7 +212,7 @@
 
       if (btn) { btn.innerText = "CRIANDO..."; btn.disabled = true; }
 
-      const tempPass = Math.random().toString(36).slice(-8) + "!Cp2024";
+      const tempPass = Math.random().toString(36).slice(-8) + "!Cp2026";
 
       createUserWithEmailAndPassword(secondaryAuth, email, tempPass)
         .then(() => sendPasswordResetEmail(secondaryAuth, email))
@@ -236,7 +250,10 @@
       const key = email.toLowerCase().replace(/[\.\#\$\[\]]/g, '_');
       set(ref(db, `usuarios/${key}`), { email, role, nome: nome || email.split('@')[0] });
     };
-    window.removerUsuarioNuvem = function(emailKey) { set(ref(db, `usuarios/${emailKey}`), null); };
+    window.removerUsuarioNuvem = function(emailKey) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+      set(ref(db, `usuarios/${emailKey}`), null);
+    };
   </script>
 
   <style>
@@ -266,7 +283,7 @@
   <div id="telaLogin" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-[#0d1526] via-[#131f3a] to-[#1a2b56]">
     <div class="bg-white max-w-[400px] w-full rounded-2xl overflow-hidden shadow-2xl">
       
-      <!-- Cabeçalho Azul com a Logo Sutilmente Maior -->
+      <!-- Cabeçalho Azul com a Logo -->
       <div class="bg-gradient-to-r from-[#1d5bd6] to-[#1a4db8] px-7 py-9 flex items-center justify-center">
         <img src="Palestrante CP (7).png" alt="Campus Party Voluntários" class="w-full max-w-[265px] h-auto object-contain">
       </div>
@@ -320,11 +337,10 @@
 
     <div id="sidebarOverlay" onclick="alternarSidebarMobile()" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden"></div>
 
-    <!-- SIDEBAR COM LARGURA SUTILMENTE REDUZIDA (w-60) -->
+    <!-- SIDEBAR -->
     <aside id="sidebarMenu" class="fixed md:static inset-y-0 left-0 z-40 w-60 bg-[#0f172a] text-slate-300 flex flex-col justify-between p-4 shrink-0 shadow-2xl md:shadow-xl h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
       
       <div class="space-y-6">
-        <!-- LOGO CENTRALIZADA NA SIDEBAR -->
         <div class="relative flex items-center justify-center border-b border-slate-800 py-3 px-2">
           <img src="Palestrante CP (7).png" alt="Campus Party Voluntários" class="w-full max-w-[175px] h-auto object-contain">
           <button onclick="alternarSidebarMobile()" class="md:hidden absolute right-1 top-1 text-slate-400 hover:text-white p-1">✕</button>
@@ -682,11 +698,12 @@
           <section class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-base font-bold text-slate-900">Palcos e Áreas</h3>
-              <p class="text-xs text-slate-500">Cadastre os palcos</p>
+              <p class="text-xs text-slate-500">Cadastre os palcos e o limite de vagas</p>
             </div>
             <form onsubmit="adicionarPalcoSetup(event)" class="flex gap-2">
-              <input type="text" id="novoPalcoSetup" required placeholder="Novo palco" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
-              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition">+ Adicionar</button>
+              <input type="text" id="novoPalcoSetup" required placeholder="Nome do palco" class="flex-1 min-w-0 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <input type="number" id="novoPalcoLimite" min="1" max="999" required placeholder="Qtd" title="Quantidade máxima de voluntários" class="w-16 bg-slate-50 border border-slate-300 rounded-xl px-2 py-2 text-xs text-slate-900 text-center font-bold focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <button type="submit" class="bg-[#0099ff] hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition shrink-0">+ Add</button>
             </form>
             <ul id="listaPalcosSetup" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto"></ul>
           </section>
@@ -807,6 +824,20 @@
     let html5QrcodeScanner = null;
     let chartInstance = null;
 
+    function escaparHTML(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizarPalco(item) {
+      if (typeof item === 'string') return { nome: item, limite: 0 };
+      return { nome: item?.nome || '', limite: Number(item?.limite) || 0 };
+    }
+
     window.alternarSidebarMobile = function() {
       const sidebar = document.getElementById('sidebarMenu');
       const overlay = document.getElementById('sidebarOverlay');
@@ -848,17 +879,18 @@
 
       Object.keys(usuarios).forEach(key => {
         const u = usuarios[key];
+        if (!u) return;
         const li = document.createElement('li');
         li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
         li.innerHTML = `
           <div>
-            <span class="font-bold text-slate-900 block">${u.nome || u.email}</span>
-            <span class="text-[10px] text-slate-400 block font-normal">${u.email}</span>
+            <span class="font-bold text-slate-900 block">${escaparHTML(u.nome || u.email)}</span>
+            <span class="text-[10px] text-slate-400 block font-normal">${escaparHTML(u.email)}</span>
             <span class="text-[10px] font-mono px-2 py-0.5 rounded ${u.role === 'coordenador' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} font-bold mt-1 inline-block">
               ${u.role === 'coordenador' ? 'Coordenador' : 'Operador'}
             </span>
           </div>
-          <button onclick="removerUsuarioOperador('${key}')" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
+          <button onclick="removerUsuarioOperador('${escaparHTML(key)}')" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
         `;
         listaUl.appendChild(li);
       });
@@ -951,7 +983,7 @@
       if (partes.length < 2) return 0;
 
       const entradaObj = new Date();
-      entradaObj.setHours(parseInt(partes[0]), parseInt(partes[1]), 0, 0);
+      entradaObj.setHours(parseInt(partes[0], 10), parseInt(partes[1], 10), 0, 0);
 
       const agora = new Date();
       let diffMs = agora - entradaObj;
@@ -965,9 +997,9 @@
       const turnoEncontrado = turnos.find(t => t.id === turnoId || t.nome === turnoId);
       if (!turnoEncontrado) return true;
 
-      const horaEntradaNum = parseInt(horaEntrada.split(':')[0]);
-      const horaInicioNum = parseInt(turnoEncontrado.inicio.split(':')[0]);
-      const horaFimNum = parseInt(turnoEncontrado.fim.split(':')[0]);
+      const horaEntradaNum = parseInt(horaEntrada.split(':')[0], 10);
+      const horaInicioNum = parseInt(turnoEncontrado.inicio.split(':')[0], 10);
+      const horaFimNum = parseInt(turnoEncontrado.fim.split(':')[0], 10);
 
       if (horaInicioNum < horaFimNum) {
         return (horaEntradaNum >= horaInicioNum - 1 && horaEntradaNum <= horaFimNum);
@@ -1006,23 +1038,23 @@
 
           tr.innerHTML = `
             <td class="p-4 text-center">
-              <input type="checkbox" ${v.confirmado ? 'checked' : ''} onchange="alternarConfirmacaoVoluntario('${v.id}')" class="w-5 h-5 text-[#0099ff] rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+              <input type="checkbox" ${v.confirmado ? 'checked' : ''} onchange="alternarConfirmacaoVoluntario('${escaparHTML(v.id)}')" class="w-5 h-5 text-[#0099ff] rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
             </td>
             <td class="p-4 font-bold text-slate-900">
-              <div>${v.nome}</div>
-              <div class="text-xs text-slate-400 font-mono font-normal">${v.email || 'Sem e-mail'}</div>
+              <div>${escaparHTML(v.nome)}</div>
+              <div class="text-xs text-slate-400 font-mono font-normal">${escaparHTML(v.email || 'Sem e-mail')}</div>
             </td>
             <td class="p-4">
               <div class="flex flex-wrap gap-1 text-[10px]">
-                <span class="px-2 py-0.5 rounded font-bold ${bgIngles}">${v.ingles || 'A1 - Iniciante'}</span>
-                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 Pref: ${v.turnoInteresse || 'Manhã'}</span>
-                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${v.genero}</span>` : ''}
+                <span class="px-2 py-0.5 rounded font-bold ${bgIngles}">${escaparHTML(v.ingles || 'A1 - Iniciante')}</span>
+                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 Pref: ${escaparHTML(v.turnoInteresse || 'Manhã')}</span>
+                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${escaparHTML(v.genero)}</span>` : ''}
               </div>
-              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${v.habilidades}</div>` : ''}
+              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${escaparHTML(v.habilidades)}</div>` : ''}
             </td>
             <td class="p-4">
               <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-slate-100 text-slate-700 font-medium border border-slate-200">
-                ${v.qrcode || 'N/A'}
+                ${escaparHTML(v.qrcode || 'N/A')}
               </span>
             </td>
             <td class="p-4">
@@ -1033,7 +1065,7 @@
             </td>
             ${eCoordenador ? `
               <td class="p-4 text-right">
-                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
+                <button onclick="excluirVoluntario('${escaparHTML(v.id)}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
               </td>
             ` : ''}
           `;
@@ -1082,12 +1114,20 @@
       if (inputMeta) inputMeta.value = window.setupEvento.metaHoras || 12;
 
       listaPalcos.innerHTML = '';
-      (window.setupEvento.palcos || []).forEach((palco, index) => {
+      (window.setupEvento.palcos || []).forEach((item, index) => {
+        const p = normalizarPalco(item);
+        const badgeLimite = p.limite > 0
+          ? `<span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0099ff] border border-blue-200">Máx: ${p.limite}</span>`
+          : `<span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">Sem limite</span>`;
+
         const li = document.createElement('li');
         li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
         li.innerHTML = `
-          <span>📍 ${palco}</span>
-          <button onclick="removerPalcoSetup(${index})" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
+          <div class="flex items-center flex-wrap gap-1">
+            <span>📍 ${escaparHTML(p.nome)}</span>
+            ${badgeLimite}
+          </div>
+          <button onclick="removerPalcoSetup(${index})" class="text-slate-400 hover:text-rose-600 transition font-bold ml-2">✕</button>
         `;
         listaPalcos.appendChild(li);
       });
@@ -1098,8 +1138,8 @@
         li.className = "p-3 bg-white flex items-center justify-between text-xs text-slate-800 font-semibold";
         li.innerHTML = `
           <div>
-            <span class="font-bold text-slate-900">${turno.nome}</span>
-            <span class="text-slate-400 font-mono ml-2">(${turno.inicio} - ${turno.fim})</span>
+            <span class="font-bold text-slate-900">${escaparHTML(turno.nome)}</span>
+            <span class="text-slate-400 font-mono ml-2">(${escaparHTML(turno.inicio)} - ${escaparHTML(turno.fim)})</span>
           </div>
           <button onclick="removerTurnoSetup(${index})" class="text-slate-400 hover:text-rose-600 transition font-bold">✕</button>
         `;
@@ -1110,6 +1150,7 @@
     };
 
     window.removerUsuarioOperador = function(key) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
       if (confirm("Remover o acesso deste usuário?")) {
         window.removerUsuarioNuvem(key);
       }
@@ -1117,7 +1158,8 @@
 
     window.salvarMetaHorasSetup = function(e) {
       e.preventDefault();
-      const val = parseInt(document.getElementById('inputMetaHorasSetup').value);
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+      const val = parseInt(document.getElementById('inputMetaHorasSetup').value, 10);
       if (val > 0) {
         window.setupEvento.metaHoras = val;
         window.salvarSetupNuvem();
@@ -1127,16 +1169,28 @@
 
     window.adicionarPalcoSetup = function(e) {
       e.preventDefault();
-      const input = document.getElementById('novoPalcoSetup');
-      const val = input.value.trim();
-      if (val && !window.setupEvento.palcos.includes(val)) {
-        window.setupEvento.palcos.push(val);
-        window.salvarSetupNuvem();
-        input.value = '';
+      if (window.usuarioLogadoRole !== 'coordenador') return;
+      const inputNome = document.getElementById('novoPalcoSetup');
+      const inputLimite = document.getElementById('novoPalcoLimite');
+      const nomeVal = inputNome.value.trim();
+      const limiteVal = parseInt(inputLimite.value, 10) || 0;
+
+      if (!nomeVal || limiteVal < 1) return;
+
+      const jaExiste = (window.setupEvento.palcos || []).some(item => normalizarPalco(item).nome.toLowerCase() === nomeVal.toLowerCase());
+      if (jaExiste) {
+        alert("Este palco ou área já está cadastrado!");
+        return;
       }
+
+      window.setupEvento.palcos.push({ nome: nomeVal, limite: limiteVal });
+      window.salvarSetupNuvem();
+      inputNome.value = '';
+      inputLimite.value = '';
     };
 
     window.removerPalcoSetup = function(index) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
       if (confirm("Remover este palco?")) {
         window.setupEvento.palcos.splice(index, 1);
         window.salvarSetupNuvem();
@@ -1145,6 +1199,7 @@
 
     window.adicionarTurnoSetup = function(e) {
       e.preventDefault();
+      if (window.usuarioLogadoRole !== 'coordenador') return;
       const nome = document.getElementById('novoTurnoNome').value.trim();
       const inicio = document.getElementById('novoTurnoInicio').value;
       const fim = document.getElementById('novoTurnoFim').value;
@@ -1159,6 +1214,7 @@
     };
 
     window.removerTurnoSetup = function(index) {
+      if (window.usuarioLogadoRole !== 'coordenador') return;
       if (confirm("Remover este turno?")) {
         window.setupEvento.turnos.splice(index, 1);
         window.salvarSetupNuvem();
@@ -1178,8 +1234,15 @@
       const filtroTurnoDesejado = document.getElementById('filtroEscalaTurnoDesejado')?.value || 'todos';
 
       const listaConfirmados = (window.voluntarios || []).filter(v => v.confirmado);
-      const palcosSetup = window.setupEvento.palcos || [];
+      const palcosSetup = (window.setupEvento.palcos || []).map(normalizarPalco);
       const turnosSetup = window.setupEvento.turnos || [];
+
+      const contagemPorPalco = {};
+      listaConfirmados.forEach(v => {
+        if (v.area && v.area !== 'Não Definido') {
+          contagemPorPalco[v.area] = (contagemPorPalco[v.area] || 0) + 1;
+        }
+      });
 
       const contagemTurnos = {};
       turnosSetup.forEach(t => contagemTurnos[t.id] = 0);
@@ -1195,7 +1258,7 @@
         const div = document.createElement('div');
         div.className = "bg-white p-4 rounded-2xl border border-slate-200 shadow-sm";
         div.innerHTML = `
-          <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">${t.nome} (${t.inicio}-${t.fim})</p>
+          <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">${escaparHTML(t.nome)} (${escaparHTML(t.inicio)}-${escaparHTML(t.fim)})</p>
           <p class="text-xl md:text-2xl font-extrabold text-[#0099ff] mt-1">${qtd} <span class="text-xs font-bold text-slate-600">${textoVoluntario}</span></p>
         `;
         containerResumo.appendChild(div);
@@ -1211,33 +1274,39 @@
           tr.className = "hover:bg-slate-50/80 transition";
 
           let palcosOptionsHtml = `<option value="" ${!v.area || v.area === 'Não Definido' ? 'selected' : ''}>Selecionar Palco...</option>` +
-            palcosSetup.map(p => `<option value="${p}" ${v.area === p ? 'selected' : ''}>${p}</option>`).join('');
+            palcosSetup.map(p => {
+              const alocados = contagemPorPalco[p.nome] || 0;
+              const selecionadoAqui = (v.area === p.nome);
+              const lotado = (p.limite > 0 && alocados >= p.limite && !selecionadoAqui);
+              const infoVagas = p.limite > 0 ? ` (${alocados}/${p.limite}${lotado ? ' - Lotado' : ''})` : '';
+              return `<option value="${escaparHTML(p.nome)}" ${selecionadoAqui ? 'selected' : ''} ${lotado ? 'disabled' : ''}>${escaparHTML(p.nome)}${infoVagas}</option>`;
+            }).join('');
 
           let turnosOptionsHtml = `<option value="" ${!v.turno ? 'selected' : ''}>Selecionar Turno...</option>` +
-            turnosSetup.map(t => `<option value="${t.id}" ${v.turno === t.id ? 'selected' : ''}>${t.nome} (${t.inicio} - ${t.fim})</option>`).join('');
+            turnosSetup.map(t => `<option value="${escaparHTML(t.id)}" ${v.turno === t.id ? 'selected' : ''}>${escaparHTML(t.nome)} (${escaparHTML(t.inicio)} - ${escaparHTML(t.fim)})</option>`).join('');
 
           const isFluente = v.ingles?.includes('C1') || v.ingles?.includes('C2');
 
           tr.innerHTML = `
             <td class="p-4 font-bold text-slate-900">
-              <div>${v.nome}</div>
-              <div class="text-xs text-slate-400 font-normal">${v.email || '--'}</div>
+              <div>${escaparHTML(v.nome)}</div>
+              <div class="text-xs text-slate-400 font-normal">${escaparHTML(v.email || '--')}</div>
             </td>
             <td class="p-4">
               <div class="flex flex-wrap gap-1 text-[10px]">
-                <span class="px-2 py-0.5 rounded font-bold ${isFluente ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${v.ingles || 'A1 - Iniciante'}</span>
-                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 ${v.turnoInteresse || 'Manhã'}</span>
-                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${v.genero}</span>` : ''}
+                <span class="px-2 py-0.5 rounded font-bold ${isFluente ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${escaparHTML(v.ingles || 'A1 - Iniciante')}</span>
+                <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">🕒 ${escaparHTML(v.turnoInteresse || 'Manhã')}</span>
+                ${v.genero ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${escaparHTML(v.genero)}</span>` : ''}
               </div>
-              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${v.habilidades}</div>` : ''}
+              ${v.habilidades ? `<div class="text-xs text-slate-500 mt-1 italic">💡 ${escaparHTML(v.habilidades)}</div>` : ''}
             </td>
             <td class="p-4">
-              <select onchange="atualizarEscalaAutomatica('${v.id}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <select onchange="atualizarEscalaAutomatica('${escaparHTML(v.id)}', 'area', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-56 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
                 ${palcosOptionsHtml}
               </select>
             </td>
             <td class="p-4">
-              <select onchange="atualizarEscalaAutomatica('${v.id}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
+              <select onchange="atualizarEscalaAutomatica('${escaparHTML(v.id)}', 'turno', this.value)" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 w-48 focus:outline-none focus:ring-2 focus:ring-[#0099ff]">
                 ${turnosOptionsHtml}
               </select>
             </td>
@@ -1252,6 +1321,18 @@
       if (!v) return;
 
       if (campo === 'area') {
+        if (valor) {
+          const palcosSetup = (window.setupEvento.palcos || []).map(normalizarPalco);
+          const palcoObj = palcosSetup.find(p => p.nome === valor);
+          if (palcoObj && palcoObj.limite > 0) {
+            const jaAlocados = (window.voluntarios || []).filter(item => item.confirmado && item.id !== id && item.area === valor).length;
+            if (jaAlocados >= palcoObj.limite) {
+              alert(`⚠️ Limite atingido! O espaço "${valor}" permite no máximo ${palcoObj.limite} voluntário(s).`);
+              renderizarEscalas();
+              return;
+            }
+          }
+        }
         v.area = valor || 'Não Definido';
       } else if (campo === 'turno') {
         v.turno = valor || '';
@@ -1341,11 +1422,11 @@
       const filtroAreaVal = selectAreaFilter ? selectAreaFilter.value : 'todas';
 
       if (selectAreaFilter) {
-        const palcos = window.setupEvento.palcos || [];
+        const palcos = (window.setupEvento.palcos || []).map(normalizarPalco);
         let htmlOptions = `<option value="todas" ${filtroAreaVal === 'todas' ? 'selected' : ''}>Todas Áreas</option>`;
         htmlOptions += `<option value="Não Definido" ${filtroAreaVal === 'Não Definido' ? 'selected' : ''}>Não Definido</option>`;
         palcos.forEach(p => {
-          htmlOptions += `<option value="${p}" ${filtroAreaVal === p ? 'selected' : ''}>${p}</option>`;
+          htmlOptions += `<option value="${escaparHTML(p.nome)}" ${filtroAreaVal === p.nome ? 'selected' : ''}>${escaparHTML(p.nome)}</option>`;
         });
         selectAreaFilter.innerHTML = htmlOptions;
       }
@@ -1393,22 +1474,22 @@
           tr.innerHTML = `
             <td class="p-4">
               <div class="font-bold text-slate-900 flex items-center gap-2">
-                ${v.nome}
+                ${escaparHTML(v.nome)}
                 ${alertaExcesso6h ? `<span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded-full font-bold">⚠️ +6h</span>` : ''}
               </div>
-              <div class="text-xs text-slate-400 font-mono">${v.email || 'Sem e-mail'}</div>
+              <div class="text-xs text-slate-400 font-mono">${escaparHTML(v.email || 'Sem e-mail')}</div>
             </td>
             <td class="p-4">
               <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-slate-100 text-slate-700 font-medium border border-slate-200">
-                ${v.qrcode || 'N/A'}
+                ${escaparHTML(v.qrcode || 'N/A')}
               </span>
             </td>
             <td class="p-4">
               <div class="text-xs text-slate-700 font-medium">
-                ${v.area || 'Não Definido'}
+                ${escaparHTML(v.area || 'Não Definido')}
                 ${alertaTurnoIncorreto ? `<span class="text-[9px] bg-rose-100 text-rose-700 px-1 py-0.5 rounded font-bold block w-max mt-0.5">Turno Incorreto</span>` : ''}
               </div>
-              <div class="text-[10px] text-slate-400 uppercase font-semibold">${v.turno || 'Pendente'}</div>
+              <div class="text-[10px] text-slate-400 uppercase font-semibold">${escaparHTML(v.turno || 'Pendente')}</div>
             </td>
             <td class="p-4">
               ${alertaExcesso6h 
@@ -1419,15 +1500,15 @@
                 )
               }
             </td>
-            <td class="p-4 font-mono text-xs text-slate-600">${v.entrada || '--:--'}</td>
-            <td class="p-4 font-mono text-xs text-slate-600">${v.Saida || '--:--'}</td>
+            <td class="p-4 font-mono text-xs text-slate-600">${escaparHTML(v.entrada || '--:--')}</td>
+            <td class="p-4 font-mono text-xs text-slate-600">${escaparHTML(v.Saida || '--:--')}</td>
             <td class="p-4 font-bold text-xs text-slate-900">${formatarMinutosParaHorasMin(minutosTotais)}</td>
             <td class="p-4 text-right space-x-2">
-              <button onclick="alternarPonto('${v.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${v.presente ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' : 'bg-[#0099ff] text-white hover:bg-blue-600'} transition shadow-sm">
+              <button onclick="alternarPonto('${escaparHTML(v.id)}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${v.presente ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' : 'bg-[#0099ff] text-white hover:bg-blue-600'} transition shadow-sm">
                 ${v.presente ? 'Check-out' : 'Check-in'}
               </button>
               ${eCoordenador ? `
-                <button onclick="excluirVoluntario('${v.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
+                <button onclick="excluirVoluntario('${escaparHTML(v.id)}')" class="text-slate-400 hover:text-rose-600 p-1.5 transition">✕</button>
               ` : ''}
             </td>
           `;
@@ -1539,14 +1620,16 @@
       e.preventDefault();
       if (window.usuarioLogadoRole !== 'coordenador') return;
 
-      const nome = document.getElementById('novoNome').value;
-      const email = document.getElementById('novoEmail').value;
-      const qrcode = document.getElementById('novoQRCode').value || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
+      const nome = document.getElementById('novoNome').value.trim();
+      const email = document.getElementById('novoEmail').value.trim();
+      const qrcode = document.getElementById('novoQRCode').value.trim() || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`;
       const genero = document.getElementById('novoGenero').value;
       const ingles = document.getElementById('novoIngles').value;
       const turnoInteresse = document.getElementById('novoTurnoInteresse').value;
-      const habilidades = document.getElementById('novoHabilidades').value;
+      const habilidades = document.getElementById('novoHabilidades').value.trim();
       const confirmado = document.getElementById('novoConfirmado').checked;
+
+      if (!nome) return;
 
       window.voluntarios.push({
         id: Date.now().toString(),
@@ -1574,7 +1657,8 @@
     function importarExcel(e) {
       if (window.usuarioLogadoRole !== 'coordenador') return;
 
-      const file = e.target.files[0];
+      const inputEl = e.target;
+      const file = inputEl.files[0];
       if (!file) return;
 
       const reader = new FileReader();
@@ -1585,18 +1669,33 @@
         const json = XLSX.utils.sheet_to_json(firstSheet);
 
         let novos = 0;
+        let ignorados = 0;
+
         json.forEach(row => {
-          const nome = row['Nome'] || row['NOME'] || row['nome'];
+          const nome = String(row['Nome'] || row['NOME'] || row['nome'] || '').trim();
+          const email = String(row['Email'] || row['EMAIL'] || row['E-mail'] || row['email'] || '').trim();
+          const qrcodeRaw = String(row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || '').trim();
+
           if (nome) {
+            const duplicado = window.voluntarios.some(v => 
+              (email && limparTexto(v.email) === limparTexto(email)) ||
+              (qrcodeRaw && limparTexto(v.qrcode) === limparTexto(qrcodeRaw))
+            );
+
+            if (duplicado) {
+              ignorados++;
+              return;
+            }
+
             window.voluntarios.push({
               id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-              qrcode: row['QRCODE'] || row['QR CODE'] || row['qrcode'] || row['Código'] || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
+              qrcode: qrcodeRaw || `4e-${Math.floor(Math.random()*8999999999+1000000000)}`,
               nome: nome,
-              email: row['Email'] || row['EMAIL'] || row['E-mail'] || row['email'] || '',
-              genero: row['Genero'] || row['Gênero'] || row['genero'] || 'Não Informar',
-              ingles: row['Ingles'] || row['Inglês'] || row['ingles'] || 'A1 - Iniciante',
-              turnoInteresse: row['TurnoDesejado'] || row['TurnoInteresse'] || row['Turno de Interesse'] || 'Manhã - Tarde (10h às 17h)',
-              habilidades: row['Habilidades'] || row['habilidades'] || '',
+              email: email,
+              genero: String(row['Genero'] || row['Gênero'] || row['genero'] || 'Não Informar').trim(),
+              ingles: String(row['Ingles'] || row['Inglês'] || row['ingles'] || 'A1 - Iniciante').trim(),
+              turnoInteresse: String(row['TurnoDesejado'] || row['TurnoInteresse'] || row['Turno de Interesse'] || 'Manhã - Tarde (10h às 17h)').trim(),
+              habilidades: String(row['Habilidades'] || row['habilidades'] || '').trim(),
               confirmado: false,
               area: 'Não Definido',
               turno: '',
@@ -1609,8 +1708,12 @@
           }
         });
 
+        inputEl.value = '';
         window.salvarNuvem();
-        alert(`${novos} voluntários importados!`);
+        alert(ignorados > 0
+          ? `${novos} voluntários importados! (${ignorados} duplicado(s) ignorado(s))`
+          : `${novos} voluntários importados!`
+        );
       };
       reader.readAsArrayBuffer(file);
     }
